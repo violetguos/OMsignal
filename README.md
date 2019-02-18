@@ -22,8 +22,12 @@ Install Python dependencies.
 pip install -r requirements.txt
 ```
 
+# prelim to-dos
+- [ ] in corporate past student code + TA baseline code
 
 
+
+# the following hasn't been formatted properly
 
 # technical util
 * save the log files and bring it offline to plot - > automate this in shell script including the scp
