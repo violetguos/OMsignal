@@ -1,0 +1,32 @@
+#!/bin/bash
+#PBS -A colosse-users
+#PBS -l nodes=1:gpus=1
+#PBS -l walltime=12:00:00
+
+# Do not execute on login nodes
+module --force purge
+PATH=$PATH:/opt/software/singularity-3.0/bin/
+
+# Set the working directory to where the job is launched
+cd "${PBS_O_WORKDIR}"
+
+# Singularity options
+IMAGE=/rap/jvb-000-aa/COURS2019/etudiants/ift6759.simg
+RAP='/rap/jvb-000-aa/COURS2019/etudiants/$USER'
+mkdir -p $RAP
+FOLDERS=$RAP,$HOME
+SINGULARITY_EXEC="singularity exec --nv --bind $FOLDERS $IMAGE"
+
+# Start the python script
+$SINGULARITY_EXEC python pr_gridsearch.py
+
+# If out and err dirs don't exist, make them
+mkdir -p out
+mkdir -p err
+
+# Put the result of the finished job (.out, .err) into the dirs
+# i.e. get the newest .out, .err files and move them
+LATEST_OUT=$(ls -t *.out | head -1)
+LATEST_ERR=$(ls -t *.err | head -1)
+mv $LATEST_OUT out/
+mv $LATEST_ERR err/

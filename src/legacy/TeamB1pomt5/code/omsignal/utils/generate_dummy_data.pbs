@@ -1,0 +1,29 @@
+#!/bin/bash
+#PBS -A colosse-users
+#PBS -l advres=MILA2019
+#PBS -l feature=k80
+#PBS -l nodes=1:gpus=1
+#PBS -l walltime=00:10:00
+
+# This script generates "dummy" data of the same shape
+# and general range as the original data, so that we can
+# develop even when not in priority on the cluster.
+# It needs access to the original data, so can only be run
+# on the cluster!
+
+# Do not execute on login nodes
+module --force purge
+PATH=$PATH:/opt/software/singularity-3.0/bin/
+
+# Set the working directory to where the job is launched
+cd "${PBS_O_WORKDIR}"
+
+# Singularity options
+IMAGE=/rap/jvb-000-aa/COURS2019/etudiants/ift6759.simg
+RAP='/rap/jvb-000-aa/COURS2019/etudiants/$USER'
+mkdir -p $RAP
+FOLDERS=$RAP,$HOME
+SINGULARITY_EXEC="singularity exec --nv --bind $FOLDERS $IMAGE"
+
+# Start the python script
+$SINGULARITY_EXEC python dummy_data.py

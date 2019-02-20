@@ -1,0 +1,2 @@
+{'conv1_num_filters': 2, 'conv2_num_filters': 2, 'conv_ksize': 4, 'dropout_p': 0.8, 'learning_rate': 0.1, 'num_epochs': 100, 'num_linear': 128}
+Lowest validation loss: 7.704678535461426
