@@ -11,8 +11,8 @@ import random
 import sys
 sys.path.append(os.path.join('..', '..'))   # Hack - fix package management later
 
-from omsignal.utils.dataloader_utils import import_OM
-from omsignal.utils.fft_utils import make_fft
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_OM
+from src.legacy.TeamB1pomt5.code.omsignal.utils.fft_utils import make_fft
 
 def plot_lines(samples, series, window, output_path, freq=125):
     title = 'Sample {}'.format(samples)

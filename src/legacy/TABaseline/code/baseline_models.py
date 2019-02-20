@@ -5,7 +5,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import Preprocessor as pp
+from src.legacy.TABaseline.code import Preprocessor as pp
 import math
 
 

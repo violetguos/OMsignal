@@ -6,9 +6,9 @@ import sys
 sys.path.append(os.path.abspath(os.path.join('..')))   # Hack - fix package management later
 
 from torch.utils.data import DataLoader, Dataset
-from config import DATA_DIR, CLUSTER_DIR
-from omsignal.utils.memfile_utils import read_memfile
-from omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.config import DATA_DIR, CLUSTER_DIR
+from src.legacy.TeamB1pomt5.code.omsignal.utils.memfile_utils import read_memfile
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
 import warnings
 warnings.filterwarnings('ignore')
 

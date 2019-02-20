@@ -8,8 +8,8 @@ import torch
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join('..', '..')))
-from omsignal.utils.preprocessor import Preprocessor
-from omsignal.utils.dataloader_utils import multitask_train_valid
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import multitask_train_valid
 import scipy.stats as stats
 import matplotlib.pyplot as plt
 from  sklearn import preprocessing

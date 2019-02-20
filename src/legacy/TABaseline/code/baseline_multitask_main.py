@@ -11,9 +11,9 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 from tensorboardX import SummaryWriter
-import baseline_models as models
-import scoring_function as scoreF
-import ecgdataset
+import src.legacy.TABaseline.code.baseline_models as models
+import src.legacy.TABaseline.code.scoring_function as scoreF
+import src.legacy.TABaseline.code.ecgdataset as ecgdataset
 import sys
 import configparser
 

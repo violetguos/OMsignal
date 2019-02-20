@@ -9,12 +9,12 @@ from scipy.stats import zscore
 from scipy.stats import kendalltau
 from sklearn.tree import DecisionTreeRegressor as dtr
 sys.path.append(os.path.abspath(os.path.join('..', '..')))
-from omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
 try:
-    from omsignal.utils.dataloader_utils import import_train_valid
+    from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_train_valid
 except:
     pass
-from config import MODELS_DIR
+from src.legacy.TeamB1pomt5.code.config import MODELS_DIR
 
 class RR_Regressor(object):
     def __init__(self, threshold, distance, z_threshold):

@@ -6,8 +6,8 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join('..')))
 
-from omsignal.base_networks import CNNRegression, CNNClassification
-from omsignal.utils.fft_utils import make_tensor_fft
+from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNRegression, CNNClassification
+from src.legacy.TeamB1pomt5.code.omsignal.utils.fft_utils import make_tensor_fft
 from functools import cmp_to_key
 
 def custom_sort_single(a, b, model, device):

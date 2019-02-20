@@ -1,5 +1,5 @@
 '''
-This script generates dummy data to develop with when
+This scripts generates dummy data to develop with when
 we are out of priority. It needs access to the original
 data, so must only be called from the server.
 '''

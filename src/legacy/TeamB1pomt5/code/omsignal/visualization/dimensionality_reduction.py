@@ -12,8 +12,8 @@ sys.path.append(os.path.join('..', '..'))   # Hack - fix package management late
 
 from sklearn.decomposition import PCA
 from sklearn.manifold import TSNE
-from omsignal.utils.preprocessor import Preprocessor
-from omsignal.utils.dataloader_utils import import_OM
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_OM
 
 def plot_scatter(x, y, c, title, output_path, xerr=None, yerr=None):
     plt.title(title)

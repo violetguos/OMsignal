@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join('..', '..')))
 
-from config import LOG_DIR, FIGURES_DIR
+from src.legacy.TeamB1pomt5.code.config import LOG_DIR, FIGURES_DIR
 
 def loss_curves(log_file):
     '''
