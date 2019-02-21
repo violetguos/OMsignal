@@ -45,3 +45,5 @@ T5_FAKE_VALID_LABELED_DATA = (
     os.path.dirname(os.path.abspath(__file__))
     + "/../legacy/TeamB1pomt5/code/data/MILA_ValidationLabeledData_dummy.dat"
 )
+
+TARGETS = 'pr_mean, rt_mean, rr_stdev, userid'
