@@ -1,57 +1,70 @@
 import numpy as np
+import argparse
+import math
 import torch
-import itertools
 import os
 import sys
-#sys.path.append(os.path.abspath(os.path.join('..')))   # Hack - fix package management later
+sys.path.append(os.path.abspath(os.path.join('..', '..')))
 
-from src.legacy.TeamB1pomt5.code.config import DATA_DIR, CLUSTER_DIR
-from src.legacy.TeamB1pomt5.code.omsignal.utils.memfile_utils import read_memfile
-from torch.utils.data import DataLoader, Dataset
+from src.legacy.TeamB1pomt5.code.config import LOG_DIR, MODELS_DIR
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_train_valid
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import get_id_mapping, map_ids, Predict_and_Score, train_PR_CNN, train_RT_Ranker, train_ID_CNN
+from src.legacy.TeamB1pomt5.code.omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
+from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNRegression, CNNClassification
+from src.legacy.TeamB1pomt5.code.omsignal.om_networks import CNNRank
+from torchvision import transforms
+from src.scripts.dataloader_utils import import_OM
 
-def import_OM(dataset, cluster=True): # Ideally replacing in legacy code : single function to import either unlabeled or labeled
+"""
+Class 2 naive implementation
+- Entropy minimization term
+"""
+
+def training_loop(training_dataloader, validation_dataloader, model):
     """
-    Reads in the unlabeled data from the original memmap, separating by type.
 
-    :param dataset: (string) dataset type : train, valid, unlabeled
-    :param cluster: (bool) location of the data (in case of dummy)
-    :return: desired dataset
+    :param training_dataloader:
+    :param validation_dataloader:
+    :param unlabeled_dataloader:
+    :param model:
+    :return:
     """
-    labeled = False
-    switch = {"Train": "TrainLabeled", "train": "TrainLabeled", "valid": "ValidationLabeled", "Valid": "ValidationLabeled"}
-    dataset = dataset.capitalize()  # 'Train', 'Validation'
-    if dataset in ["Train", "Validation", "Training", "Valid"]:
-        dataset_ = switch[dataset]
-        labeled = True
 
-    if cluster:
-        path_ = os.path.join(CLUSTER_DIR, 'MILA_{}Data.dat'.format(dataset))
-    else:
-        path_ = os.path.join(DATA_DIR, 'MILA_{}Data_dummy.dat'.format(dataset))
+def evaluate_unlabeled(unlabeled_dataloader, threshold):
+    """
 
-    if labeled:
-        shape_ = (160, 3754)
-    else:
-        shape_ = (657233, 3750)
+    :param unlabeled_dataloader: data to be predicted
+    :param threshold: confidence threshold for accepting label as true
+    :return: new_labeled_data
+    """
 
-    data = read_memfile(path_, shape=shape_, dtype='float32')
-
-    # Split the data according to what's in the columns
-    if labeled:
-        ecg = data[:, :3750]
-        ecg = ecg.reshape(ecg.shape[0], 1, ecg.shape[1])
-        PR_means = data[:, 3750].reshape((-1, 1))
-        RT_means = data[:, 3751].reshape((-1, 1))
-        RR_stdevs = data[:, 3752].reshape((-1, 1))
-        ids = data[:, 3753].reshape((-1, 1))
-
-        return ecg, PR_means, RT_means, RR_stdevs, ids
-    else:
-        return data
-
-def entropy_mnimization_loss():
 
 if __name__ == '__main__':
+    # Parse input arguments
+    parser = argparse.ArgumentParser(description='Train models.')
+    # parser.add_argument('task_name', help='Task to train the model for. Possible choices: [PR, RT, ID]')
+    # parser.add_argument('--combine', help='Combine train and validation sets.', action='store_true')
+    args = parser.parse_args()
 
-    data_ = import_OM("unlabeled")
-    print(np.shape(data_))
+    # Configure for GPU (or not)
+    cluster = torch.cuda.is_available()
+    # cluster = False
+    print('GPU available: {}'.format(cluster))
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+    # Import the data, concatenating train and valid sets
+    # suffix = 'report'
+    X_train, X_valid, y_train, y_valid = import_train_valid('all', cluster=cluster)
+    if args.combine:
+        X_train = np.concatenate((X_train, X_valid), axis=0)
+        y_train = np.concatenate((y_train, y_valid), axis=0)
+        #suffix = 'eval'
+    train_batch_size, valid_batch_size = 160, 160
+
+    #Import unlabeled data
+    unlabeled = import_OM("unlabeled")
+
+    # Entering Training mega-loop
+
+    # Step 1 : Defining dataloaders
