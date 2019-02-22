@@ -3,7 +3,7 @@ import torch
 import itertools
 import os
 import sys
-sys.path.append(os.path.abspath(os.path.join('..')))   # Hack - fix package management later
+#sys.path.append(os.path.abspath(os.path.join('..')))   # Hack - fix package management later
 
 from src.legacy.TeamB1pomt5.code.config import DATA_DIR, CLUSTER_DIR
 from src.legacy.TeamB1pomt5.code.omsignal.utils.memfile_utils import read_memfile
@@ -15,7 +15,7 @@ def import_OM(dataset, cluster=True): # Ideally replacing in legacy code : singl
 
     :param dataset: (string) dataset type : train, valid, unlabeled
     :param cluster: (bool) location of the data (in case of dummy)
-    :return:
+    :return: desired dataset
     """
     labeled = False
     switch = {"Train": "TrainLabeled", "train": "TrainLabeled", "valid": "ValidationLabeled", "Valid": "ValidationLabeled"}

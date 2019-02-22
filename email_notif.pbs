@@ -1,0 +1,17 @@
+#!/bin/bash
+#PBS -A colosse-users
+#PBS -l nodes=1:gpus=1
+#PBS -l walltime=01:00:00
+
+#SBATCH --mail-user=<jp.letendre1@gmail.com>
+#SBATCH --mail-type=BEGIN
+#SBATCH --mail-type=END
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-type=REQUEUE
+#SBATCH --mail-type=ALL
+
+# Set the working directory to home
+cd "${PBS_O_WORKDIR}"
+# cd "/home/user21/bloc2/OMsignal"
+
+s_exec python src/scripts/class2_model.py
