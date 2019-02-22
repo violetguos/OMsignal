@@ -4,12 +4,17 @@ from src.utils import constants
 from src.legacy.TABaseline.code.ecgdataset import ECGDataset
 from torch import nn, optim
 from torch.nn import functional as F
+import sys
+import configparser
 
 """Before doing a variational autoencoder, start with a basic autoencoder"""
 # TODO:
 # 1. use config parser
-# 2. create DataSet class for unlabelled data, or find under legacy
+# 2. create DataSet class for unlabeled data, or find under legacy (JP is working on it)
 # 3. read up on VAE
+# 4. Log results for tensorboardX
+# 5. Add loss on eval dataset if grid search is needed
+# 6. Save model
 
 class autoencoder(nn.Module):
     def __init__(self):
@@ -34,7 +39,6 @@ class autoencoder(nn.Module):
 
 def train(epoch, model, optimizer, train_loader):
     model.train()
-    criterion = nn.BCELoss()
 
     for batch_idx, (data, _) in enumerate(train_loader):
         print("data iter", data.shape)
@@ -55,19 +59,18 @@ def train(epoch, model, optimizer, train_loader):
         print('epoch [{}/{}], loss:{:.4f}, MSE_loss:{:.4f}'
               .format(epoch + 1, batch_idx, BCE_loss.data, MSE_loss.data))
 
-
-
-
-
+    return MSE_loss.item()
 
 
 
 if __name__ == '__main__':
+    config = configparser.ConfigParser()
+    config.read('src/algorithm/base_AE_input.in') #sys.argv[1])
     train_dataset = ECGDataset(
         constants.TRAIN_LABELED_DATASET_PATH, True, target=constants.TARGETS)
     valid_dataset = ECGDataset(
         constants.VALID_LABELED_DATASET_PATH, False, target=constants.TARGETS)
-    batch_size = 32
+    batch_size = int(config.get('optimizer', 'batch_size'))
     train_loader = DataLoader(train_dataset, batch_size, shuffle=True,
                               num_workers=1)
     valid_loader = DataLoader(valid_dataset, batch_size, shuffle=False,
@@ -76,5 +79,8 @@ if __name__ == '__main__':
     device = torch.device('cuda')
     model = autoencoder().to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
-    for epoch in range(10):
-        train(epoch, model, optimizer, train_loader)
+    nepoch = int(config.get('optimizer', 'nepoch'))
+
+    train_loss_history = []
+    for epoch in range(nepoch):
+        train_loss_history.append(train(epoch, model, optimizer, train_loader))
