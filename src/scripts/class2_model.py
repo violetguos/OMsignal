@@ -49,6 +49,8 @@ def import_OM(dataset, cluster=True): # Ideally replacing in legacy code : singl
     else:
         return data
 
+def entropy_mnimization_loss():
+
 if __name__ == '__main__':
 
     data_ = import_OM("unlabeled")
