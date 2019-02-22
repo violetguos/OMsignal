@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -A colosse-users
 #PBS -l nodes=1:gpus=1
-#PBS -l walltime=01:00:00
+#PBS -l walltime=03:00:00
 
 #SBATCH --mail-user=<jp.letendre1@gmail.com>
 #SBATCH --mail-type=BEGIN
@@ -10,8 +10,26 @@
 #SBATCH --mail-type=REQUEUE
 #SBATCH --mail-type=ALL
 
-# Set the working directory to home
-cd "${PBS_O_WORKDIR}"
-# cd "/home/user21/bloc2/OMsignal"
 
-s_exec python src/scripts/class2_model.py
+# Do not execute on login nodes
+module --force purge
+export PATH=$PATH:/opt/software/singularity-3.0/bin/
+export PYTHONPATH="${PYTHONPATH}:/block2"
+
+
+# Set the working directory to where the job is launched
+cd "${PBS_O_WORKDIR}"
+
+
+s_exec /miniconda/bin/python scripts/class2_model.py
+
+# If out and err dirs don't exist, make them
+mkdir -p out
+mkdir -p err
+
+# Put the result of the finished job (.out, .err) into the dirs
+# i.e. get the newest .out, .err files and move them
+LATEST_OUT=$(ls -t *.out | head -1)
+LATEST_ERR=$(ls -t *.err | head -1)
+mv $LATEST_OUT out/
+mv $LATEST_ERR err/
