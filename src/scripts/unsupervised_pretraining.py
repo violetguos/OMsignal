@@ -67,8 +67,8 @@ def eval_model(autoencoder, prediction_module, criterion, eval_loader, score_par
     """
     # TODO Write the function
 
-def train_autoencoder(epoch, model, optimizer, batch_size, train_loader):
-    model.train()
+def train_autoencoder(epoch, autoencoder, optimizer, batch_size, train_loader):
+    autoencoder.train()
     total_batch = constants.UNLABELED_SHAPE[0] // batch_size
 
     for batch_idx, (data, _) in enumerate(train_loader):
@@ -77,7 +77,7 @@ def train_autoencoder(epoch, model, optimizer, batch_size, train_loader):
         # print("data iter to dev", data)
 
         optimizer.zero_grad()
-        output = model(data)
+        output = autoencoder(data)
 
         data = pp.Preprocessor().forward(data)
         print("data after prepro\n")
@@ -90,15 +90,15 @@ def train_autoencoder(epoch, model, optimizer, batch_size, train_loader):
         MSE_loss.backward()
         optimizer.step()
         print(
-            "batch [{}/{}], loss:{:.4f}, MSE_loss:{:.4f}".format(
-                batch_idx, total_batch, BCE_loss.data, MSE_loss.data
+            "epoch [{}/{}], batch [{}/{}], loss:{:.4f}, MSE_loss:{:.4f}".format(
+                epoch, batch_idx, total_batch, BCE_loss.data, MSE_loss.data
             )
         )
         # TODO: make a helper function under util/cache.py and use a name generator for the model
         # torch.save(model.state_dict(), "../../model")
     return MSE_loss.item()
 
-def train_prediction_module(model, optimizer, criterion, train_loader, score_param_index,
+def train_prediction_module(autoencoder, model, optimizer, criterion, train_loader, score_param_index,
                 weight=None):
     model.train()
     train_loss = 0
@@ -117,6 +117,7 @@ def train_prediction_module(model, optimizer, criterion, train_loader, score_par
 
     for x, y in train_loader:
         x = x.to(device)
+        x = autoencoder.encoder(x)
         if isinstance(y, (list, tuple)):
             y = [t.to(device) for t in y]
         else:
@@ -258,14 +259,14 @@ def load_model(epoch, model, prefix='neural_network', path='./'):
 
 def training_loop(
         autoencoder,
-        prediction_module,
+        model,
+        AE_optimizer,
         optimizer,
         criterion,
         train_loader,
         eval_loader,
         score_param_index,
         hyperparameters_dict,
-        pretraining=True,
         chkptg_freq=10,
         prefix='neural_network',
         path='./'):
@@ -274,8 +275,10 @@ def training_loop(
     writer = SummaryWriter(hyperparameters_dict['tbpath'])
 
     autoencoder_loss_history = []
-
-
+    for epoch in range(1, hyperparameters_dict['AE_nepoch'] + 1):
+        train_loss = train_autoencoder(
+            epoch, autoencoder, AE_optimizer, hyperparameters_dict['AE_batch_size'], train_loader)
+        autoencoder_loss_history.append(train_loss)
 
     train_loss_history = []
     train_acc_history = []
@@ -284,37 +287,37 @@ def training_loop(
     weight = hyperparameters_dict['weight']
 
     for epoch in range(1, hyperparameters_dict['nepoch'] + 1):
-        train_loss, train_acc = train_model(
-            model, optimizer, criterion, train_loader,
-            score_param_index, weight
+        train_loss, train_acc = train_prediction_module(
+            autoencoder, model, optimizer, criterion,
+            train_loader, score_param_index, weight
         )
         train_loss_history.append(train_loss)
         train_acc_history.append(train_acc)
 
-        valid_loss, valid_acc = eval_model(
-            model, criterion, eval_loader,
-            score_param_index, weight
-        )
-        valid_loss_history.append(valid_loss)
-        valid_acc_history.append(valid_acc)
+       # #valid_loss, valid_acc = eval_model(
+       #     model, criterion, eval_loader,
+       #     score_param_index, weight
+       # )
+       #valid_loss_history.append(valid_loss)
+       #valid_acc_history.append(valid_acc)
 
-        writer.add_scalar('Training/Loss', train_loss, epoch)
-        writer.add_scalar('Valid/Loss', valid_loss, epoch)
+       #writer.add_scalar('Training/Loss', train_loss, epoch)
+       #writer.add_scalar('Valid/Loss', valid_loss, epoch)
 
-        writer.add_scalar('Training/OverallScore', train_acc[0], epoch)
-        writer.add_scalar('Valid/OverallScore', valid_acc[0], epoch)
+       #writer.add_scalar('Training/OverallScore', train_acc[0], epoch)
+       #writer.add_scalar('Valid/OverallScore', valid_acc[0], epoch)
 
-        writer.add_scalar('Training/prMeanTau', train_acc[1], epoch)
-        writer.add_scalar('Valid/prMeanTau', valid_acc[1], epoch)
+       #writer.add_scalar('Training/prMeanTau', train_acc[1], epoch)
+       #writer.add_scalar('Valid/prMeanTau', valid_acc[1], epoch)
 
-        writer.add_scalar('Training/rtMeanTau', train_acc[2], epoch)
-        writer.add_scalar('Valid/rtMeanTau', valid_acc[2], epoch)
+       #writer.add_scalar('Training/rtMeanTau', train_acc[2], epoch)
+       #writer.add_scalar('Valid/rtMeanTau', valid_acc[2], epoch)
 
-        writer.add_scalar('Training/rrStdDevTau', train_acc[3], epoch)
-        writer.add_scalar('Valid/rrStdDevTau', valid_acc[3], epoch)
+       #writer.add_scalar('Training/rrStdDevTau', train_acc[3], epoch)
+       #writer.add_scalar('Valid/rrStdDevTau', valid_acc[3], epoch)
 
-        writer.add_scalar('Training/userIdAcc', train_acc[4], epoch)
-        writer.add_scalar('Valid/userIdAcc', valid_acc[4], epoch)
+       #writer.add_scalar('Training/userIdAcc', train_acc[4], epoch)
+       #writer.add_scalar('Valid/userIdAcc', valid_acc[4], epoch)
 
         print("Epoch {} {} {} {} {}".format(
             epoch, train_loss, valid_loss, train_acc, valid_acc)
@@ -331,8 +334,10 @@ def training_loop(
 
 
 if __name__ == '__main__':
-    config = configparser.ConfigParser()
-    config.read(sys.argv[1])
+    autoencoder_config = configparser.ConfigParser()
+    autoencoder_config.read("src/algorithm/autoencoder_input.in")
+    model_config = configparser.ConfigParser()
+    model_config.read("src/scripts/model_input.in")
     hyperparameters_dict = get_hyperparameters(config)
     train_dataset = ecgdataset.ECGDataset(
         '../Data/MILA_TrainLabeledData.dat', True, target=targets)
@@ -364,24 +369,10 @@ if __name__ == '__main__':
     chkptg_freq = 50
 
     # define the model
-    modeltype = hyperparameters_dict['model']
-    if modeltype == 'LSTM':
-        model = models.LSTMLinear(
-            input_size, out_size, hidden_size, n_layers, dropout)
-    elif modeltype == 'RNN':
-        model = models.RNNLinear(input_size, out_size,
-                                 hidden_size, n_layers, dropout)
-    elif modeltype == 'MLP':
-        model = models.MLP(input_size, out_size, hidden_size)
-    elif modeltype == 'CONV1D':
-        model = models.Conv1DLinear(
-            1, out_size, hidden_size, kernel_size, pool_size)
-    elif modeltype == 'CONV1DBN':
-        model = models.Conv1DBNLinear(
-            1, out_size, hidden_size, kernel_size, pool_size, dropout)
-    else:
-        print('Model should be set to LSTM/RNN/MLP/CONV1D/CONV1DBN')
-        exit()
+
+    model = models.Conv1DBNLinear(
+        1, out_size, hidden_size, kernel_size, pool_size, dropout)
+
     # model to gpu, create optimizer, criterion and train
     model.to(device)
     optimizer = optim.Adam(model.parameters(),

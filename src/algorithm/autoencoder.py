@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from src.utils import constants
+    from src.utils import constants
 from src.legacy.TABaseline.code.ecgdataset import ECGDataset
 from torch import nn, optim
 from torch.nn import functional as F
@@ -9,8 +9,6 @@ import configparser
 import sys
 from src.legacy.TABaseline.code import Preprocessor as pp
 
-
-"""Before doing a variational autoencoder, start with a basic autoencoder"""
 # TODO:
 # -Done 1. use config parser
 # -Done 2. create DataSet class for unlabelled data, or find under legacy
@@ -74,7 +72,7 @@ def plot_signal(output):
 
 if __name__ == "__main__":
     config = configparser.ConfigParser()
-    config.read("base_AE_input.in")
+    config.read("autoencoder_input.in")
     train_dataset = UnlabelledDataset(constants.T5_FAKE_VALID_LABELED_DATA, False)
     print(train_dataset)
     # read from config files
