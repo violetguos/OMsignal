@@ -67,6 +67,7 @@ def eval_model(autoencoder, prediction_module, criterion, eval_loader, score_par
     """
     # TODO Write the function
 
+
 def train_autoencoder(epoch, autoencoder, optimizer, batch_size, train_loader):
     autoencoder.train()
     total_batch = constants.UNLABELED_SHAPE[0] // batch_size
@@ -78,6 +79,7 @@ def train_autoencoder(epoch, autoencoder, optimizer, batch_size, train_loader):
 
         optimizer.zero_grad()
         output = autoencoder(data)
+
 
         data = pp.Preprocessor().forward(data)
         print("data after prepro\n")
@@ -369,10 +371,8 @@ if __name__ == '__main__':
     chkptg_freq = 50
 
     # define the model
-
     model = models.Conv1DBNLinear(
         1, out_size, hidden_size, kernel_size, pool_size, dropout)
-
     # model to gpu, create optimizer, criterion and train
     model.to(device)
     optimizer = optim.Adam(model.parameters(),
