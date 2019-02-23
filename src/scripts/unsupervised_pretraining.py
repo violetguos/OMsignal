@@ -1,21 +1,17 @@
-# For Project Cours Winter 2019
-# OM Signal Project
-# This is a baseline for a small labeled dataset
-# Classification task: identify userid from ECG data
-# and 3 regression tasks
-
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from tensorboardX import SummaryWriter
+#from tensorboardX import SummaryWriter
 
 import src.legacy.TABaseline.code.baseline_models as models
 import src.legacy.TABaseline.code.scoring_function as scoreF
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
-
+from src.algorithm.autoencoder import AutoEncoder
+from src.legacy.TABaseline.code import Preprocessor as pp
+from src.data.unlabelled_data import UnlabelledDataset
 from src.utils import constants
 
 import sys
@@ -47,11 +43,39 @@ target_criterion_dict = {
 targets = 'pr_mean, rt_mean, rr_stdev, userid'
 
 
-def get_hyperparameters(config):
-    # from a ConfigParser() file; get hyperparameters
-    # return them in a dict
+def get_hyperparameters(config, autoencoder=False):
     hyperparam = {}
-    # TODO: Need a section for the AE and one for the prediction module
+    hyperparam['learning_rate'] = \
+        float(config.get('optimizer', 'learning_rate'))
+    hyperparam['momentum'] = \
+        float(config.get('optimizer', 'momentum'))
+    hyperparam['batchsize'] = \
+        int(config.get('optimizer', 'batch_size'))
+    hyperparam['nepoch'] = \
+        int(config.get('optimizer', 'nepoch'))
+    hyperparam['model'] = \
+        config.get('model', 'name')
+    hyperparam['hidden_size'] = \
+        int(config.get('model', 'hidden_size'))
+    hyperparam['dropout'] = \
+        float(config.get('model', 'dropout'))
+    hyperparam['n_layers'] = \
+        int(config.get('model', 'n_layers'))
+    if not autoencoder:
+        hyperparam['kernel_size'] = \
+            int(config.get('model', 'kernel_size'))
+        hyperparam['pool_size'] = \
+            int(config.get('model', 'pool_size'))
+        hyperparam['tbpath'] = \
+            config.get('path', 'tensorboard')
+        hyperparam['modelpath'] = \
+            config.get('path', 'model')
+        weight1 = float(config.get('loss', 'weight1'))
+        weight2 = float(config.get('loss', 'weight2'))
+        weight3 = float(config.get('loss', 'weight3'))
+        weight4 = float(config.get('loss', 'weight4'))
+        hyperparam['weight'] = \
+            [weight1, weight2, weight3, weight4]
     return hyperparam
 
 
@@ -68,8 +92,8 @@ def eval_model(autoencoder, prediction_module, criterion, eval_loader, score_par
     # TODO Write the function
 
 
-def train_autoencoder(epoch, autoencoder, optimizer, batch_size, train_loader):
-    autoencoder.train()
+def train_autoencoder(epoch, model, optimizer, batch_size, train_loader):
+    model.train()
     total_batch = constants.UNLABELED_SHAPE[0] // batch_size
 
     for batch_idx, (data, _) in enumerate(train_loader):
@@ -78,13 +102,12 @@ def train_autoencoder(epoch, autoencoder, optimizer, batch_size, train_loader):
         # print("data iter to dev", data)
 
         optimizer.zero_grad()
-        output = autoencoder(data)
+        output = model(data)
 
 
         data = pp.Preprocessor().forward(data)
-        print("data after prepro\n")
-        print(data)
-        BCE_loss = nn.BCELoss()(output, data)
+        # print("data after prepro\n")
+        # print(data)
         MSE_loss = nn.MSELoss()(output, data)
 
         # ===================backward====================
@@ -92,8 +115,8 @@ def train_autoencoder(epoch, autoencoder, optimizer, batch_size, train_loader):
         MSE_loss.backward()
         optimizer.step()
         print(
-            "epoch [{}/{}], batch [{}/{}], loss:{:.4f}, MSE_loss:{:.4f}".format(
-                epoch, batch_idx, total_batch, BCE_loss.data, MSE_loss.data
+            "epoch [{}], batch [{}/{}], MSE_loss:{:.4f}".format(
+                epoch, batch_idx, total_batch, MSE_loss.data
             )
         )
         # TODO: make a helper function under util/cache.py and use a name generator for the model
@@ -263,34 +286,37 @@ def training_loop(
         autoencoder,
         model,
         AE_optimizer,
-        optimizer,
+        model_optimizer,
         criterion,
         train_loader,
+        unlabeled_loader,
         eval_loader,
         score_param_index,
-        hyperparameters_dict,
+        autoencoder_hp_dict,
+        model_hp_dict,
         chkptg_freq=10,
         prefix='neural_network',
         path='./'):
     # train the model using optimizer / criterion
     # this function also creates a tensorboard log
-    writer = SummaryWriter(hyperparameters_dict['tbpath'])
+    # writer = SummaryWriter(hyperparameters_dict['tbpath'])
 
     autoencoder_loss_history = []
-    for epoch in range(1, hyperparameters_dict['AE_nepoch'] + 1):
+    for epoch in range(autoencoder_hp_dict['nepoch']):
         train_loss = train_autoencoder(
-            epoch, autoencoder, AE_optimizer, hyperparameters_dict['AE_batch_size'], train_loader)
+            epoch, autoencoder, AE_optimizer, autoencoder_hp_dict['batchsize'], unlabeled_loader)
         autoencoder_loss_history.append(train_loss)
+    print("Autoencoder training done")
 
     train_loss_history = []
     train_acc_history = []
     valid_loss_history = []
     valid_acc_history = []
-    weight = hyperparameters_dict['weight']
+    weight = model_hp_dict['weight']
 
-    for epoch in range(1, hyperparameters_dict['nepoch'] + 1):
+    for epoch in range(1, model_hp_dict['nepoch'] + 1):
         train_loss, train_acc = train_prediction_module(
-            autoencoder, model, optimizer, criterion,
+            autoencoder, model, model_optimizer, criterion,
             train_loader, score_param_index, weight
         )
         train_loss_history.append(train_loss)
@@ -321,36 +347,49 @@ def training_loop(
        #writer.add_scalar('Training/userIdAcc', train_acc[4], epoch)
        #writer.add_scalar('Valid/userIdAcc', valid_acc[4], epoch)
 
-        print("Epoch {} {} {} {} {}".format(
-            epoch, train_loss, valid_loss, train_acc, valid_acc)
+        print("Epoch {} {} {}".format(
+            #epoch, train_loss, valid_loss, train_acc, valid_acc)
+            epoch, train_loss, train_acc)
         )
 
         # Checkpoint
-        if epoch % chkptg_freq == 0:
-            save_model(epoch, model, prefix, path)
-    save_model(hyperparameters_dict['nepoch'], model, prefix, path)
+    #    if epoch % chkptg_freq == 0:
+    #        save_model(epoch, model, prefix, path)
+    #save_model(model_hp_dict['nepoch'], model, prefix, path)
     return [
         (train_loss_history, train_acc_history),
-        (valid_loss_history, valid_acc_history)
+        (0,0)
+        # (valid_loss_history, valid_acc_history)
     ]
 
 
 if __name__ == '__main__':
     autoencoder_config = configparser.ConfigParser()
     autoencoder_config.read("src/algorithm/autoencoder_input.in")
+    autoencoder_hp_dict = get_hyperparameters(autoencoder_config, autoencoder=True)
     model_config = configparser.ConfigParser()
     model_config.read("src/scripts/model_input.in")
-    hyperparameters_dict = get_hyperparameters(config)
+    model_hp_dict = get_hyperparameters(model_config)
+
     train_dataset = ecgdataset.ECGDataset(
-        '../Data/MILA_TrainLabeledData.dat', True, target=targets)
+        constants.TRAIN_LABELED_DATASET_PATH, True, target=targets)
     valid_dataset = ecgdataset.ECGDataset(
-        '../Data/MILA_ValidationLabeledData.dat', False, target=targets)
-    batchsize = hyperparameters_dict['batchsize']
-    train_loader = DataLoader(train_dataset, batchsize, shuffle=True,
+        constants.VALID_LABELED_DATASET_PATH, False, target=targets)
+    unlabeled_dataset = UnlabelledDataset(
+        constants.UNLABELED_DATASET_PATH, False)
+
+    train_loader = DataLoader(train_dataset, model_hp_dict['batchsize'], shuffle=True,
                               num_workers=1)
-    valid_loader = DataLoader(valid_dataset, batchsize, shuffle=False,
+    valid_loader = DataLoader(valid_dataset, model_hp_dict['batchsize'], shuffle=False,
+                              num_workers=1)
+    unlabeled_loader = DataLoader(unlabeled_dataset, autoencoder_hp_dict['batchsize'], shuffle=False,
                               num_workers=1)
 
+    # Autoencoder initialization
+    autoencoder = AutoEncoder().to(device)
+    AE_optimizer = optim.Adam(autoencoder.parameters(), lr=autoencoder_hp_dict['learning_rate'])
+
+    # Model initialization
     input_size = 3750
     target_labels = targets.split(",")
     target_labels = [s.lower().strip() for s in target_labels]
@@ -360,14 +399,14 @@ if __name__ == '__main__':
         out_size = [
             target_out_size_dict[a] for a in target_labels
         ]
-    n_layers = hyperparameters_dict['n_layers']
-    hidden_size = hyperparameters_dict['hidden_size']
-    kernel_size = hyperparameters_dict['kernel_size']
-    pool_size = hyperparameters_dict['pool_size']
-    dropout = hyperparameters_dict['dropout']
+    n_layers = model_hp_dict['n_layers']
+    hidden_size = model_hp_dict['hidden_size']
+    kernel_size = model_hp_dict['kernel_size']
+    pool_size = model_hp_dict['pool_size']
+    dropout = model_hp_dict['dropout']
 
     path = './'
-    prefix = hyperparameters_dict['modelpath']
+    prefix = model_hp_dict['modelpath']
     chkptg_freq = 50
 
     # define the model
@@ -375,8 +414,8 @@ if __name__ == '__main__':
         1, out_size, hidden_size, kernel_size, pool_size, dropout)
     # model to gpu, create optimizer, criterion and train
     model.to(device)
-    optimizer = optim.Adam(model.parameters(),
-                           lr=hyperparameters_dict['learning_rate'])
+    model_optimizer = optim.Adam(model.parameters(),
+                           lr=model_hp_dict['learning_rate'])
 
     if len(target_labels) == 1:
         criterion = target_criterion_dict[target_labels[0]]
@@ -396,9 +435,11 @@ if __name__ == '__main__':
             'userid') == 0 else target_labels.index('userid'),
     ]
 
+    # Training loop
     train, valid = training_loop(
-        model, optimizer, criterion, train_loader,
-        valid_loader, scoring_func_param_index,
-        hyperparameters_dict, chkptg_freq, prefix, path
+        autoencoder, model, AE_optimizer, model_optimizer, criterion,
+        train_loader, unlabeled_loader, valid_loader,
+        scoring_func_param_index, autoencoder_hp_dict, model_hp_dict,
+        chkptg_freq, prefix, path
     )
     print('Done')

@@ -19,5 +19,5 @@ weight3 = 1
 weight4 = 1
 
 [path]
-model = Models/baseline_final
-tensorboard = Tensorboard/baseline_final
+model = models
+tensorboard = tensorboard
