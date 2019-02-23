@@ -7,17 +7,20 @@ from torch.nn import functional as F
 from src.data.unlabelled_data import UnlabelledDataset
 import configparser
 import sys
+from src.legacy.TABaseline.code import Preprocessor as pp
+
 
 """Before doing a variational autoencoder, start with a basic autoencoder"""
 # TODO:
 # -Done 1. use config parser
 # -Done 2. create DataSet class for unlabelled data, or find under legacy
-# 3. read up on VAE
 
 
 class autoencoder(nn.Module):
     def __init__(self):
         super(autoencoder, self).__init__()
+        self.preprocess = pp.Preprocessor()
+
         # the number of hidden units are hardcoded for now.
         self.encoder = nn.Sequential(
             nn.Linear(3750, 1024), nn.ReLU(True), nn.Linear(1024, 256), nn.ReLU(True)
@@ -27,6 +30,7 @@ class autoencoder(nn.Module):
         )
 
     def forward(self, x):
+        x = self.preprocess(x)
         x = self.encoder(x)
         x = self.decoder(x)
         return x
@@ -34,18 +38,19 @@ class autoencoder(nn.Module):
 
 def train(epoch, model, optimizer, train_loader):
     model.train()
-    criterion = nn.BCELoss()
-
-    total_batch = constants.UNLABELED_SHAPE[0]
+    total_batch = constants.UNLABELED_SHAPE[0] // 32
 
     for batch_idx, (data, _) in enumerate(train_loader):
         data = data.to(device)
-        data = data.view(32, 3750)
-        print("data iter to dev", data.shape)
+        data = data.view(32, 1, 3750)
+        # print("data iter to dev", data)
 
         optimizer.zero_grad()
         output = model(data)
 
+        data = pp.Preprocessor().forward(data)
+        print("data after prepro\n")
+        print(data)
         BCE_loss = nn.BCELoss()(output, data)
         MSE_loss = nn.MSELoss()(output, data)
 
@@ -58,16 +63,23 @@ def train(epoch, model, optimizer, train_loader):
                 batch_idx, total_batch, BCE_loss.data, MSE_loss.data
             )
         )
+        # TODO: make a helper function under util/cache.py and use a name generator for the model
+        # torch.save(model.state_dict(), "../../model")
+    return MSE_loss.item()
+
+
+def plot_signal(output):
+    print(output)
 
 
 if __name__ == "__main__":
     config = configparser.ConfigParser()
-    config.read('base_AE_input.in')
-    train_dataset = UnlabelledDataset(constants. T5_FAKE_VALID_LABELED_DATA, False)
-
+    config.read("base_AE_input.in")
+    train_dataset = UnlabelledDataset(constants.T5_FAKE_VALID_LABELED_DATA, False)
+    print(train_dataset)
     # read from config files
-    batch_size = config.get('optimizer', 'batch_size')
-
+    batch_size = int(config.get("optimizer", "batch_size"))
+    print(type(batch_size))
 
     train_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=1)
 
@@ -75,4 +87,7 @@ if __name__ == "__main__":
     model = autoencoder().to(device)
     optimizer = optim.Adam(model.parameters(), lr=1e-3)
 
-    train(1, model, optimizer, train_loader)
+    nepoch = int(config.get('optimizer', 'nepoch'))
+    train_loss_history = []
+    for epoch in range(nepoch):
+        train_loss_history.append(train(epoch, model, optimizer, train_loader))
