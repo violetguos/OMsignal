@@ -33,58 +33,5 @@ class AutoEncoder(nn.Module):
         x = self.decoder(x)
         return x
 
-
-def train_autoencoder(epoch, model, optimizer, batch_size, train_loader):
-    model.train()
-    total_batch = constants.UNLABELED_SHAPE[0] // batch_size
-
-    for batch_idx, (data, _) in enumerate(train_loader):
-        data = data.to(device)
-        data = data.view(batch_size, 1, 3750)
-        # print("data iter to dev", data)
-
-        optimizer.zero_grad()
-        output = model(data)
-
-
-        data = pp.Preprocessor().forward(data)
-        # print("data after prepro\n")
-        # print(data)
-        MSE_loss = nn.MSELoss()(output, data)
-
-        # ===================backward====================
-        optimizer.zero_grad()
-        MSE_loss.backward()
-        optimizer.step()
-        print(
-            "epoch [{}], batch [{}/{}], MSE_loss:{:.4f}".format(
-                epoch+1, batch_idx, total_batch, MSE_loss.data
-            )
-        )
-        # TODO: make a helper function under util/cache.py and use a name generator for the model
-        # torch.save(model.state_dict(), "../../model")
-    return MSE_loss.item()
-
 def plot_signal(output):
     print(output)
-
-
-if __name__ == "__main__":
-    config = configparser.ConfigParser()
-    config.read("src/algorithm/autoencoder_input.in")
-    train_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
-    print(train_dataset)
-    # read from config files
-    batch_size = int(config.get("optimizer", "batch_size"))
-    print(type(batch_size))
-
-    train_loader = DataLoader(train_dataset, batch_size, shuffle=True, num_workers=1)
-
-    device = torch.device("cpu")
-    model = AutoEncoder().to(device)
-    optimizer = optim.Adam(model.parameters(), lr=1e-3)
-
-    nepoch = int(config.get('optimizer', 'nepoch'))
-    train_loss_history = []
-    for epoch in range(nepoch):
-        train_loss_history.append(train_autoencoder(epoch, model, optimizer, 32, train_loader))
