@@ -36,6 +36,8 @@ def run(model, device):
             output = model(input)
             print("predicted", output)
 
+
+
 if __name__ == "__main__":
     learning_rate = 0.001
     momentum = 0.9

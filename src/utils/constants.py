@@ -47,4 +47,10 @@ T5_FAKE_VALID_LABELED_DATA = (
     + "/../legacy/TeamB1pomt5/code/data/MILA_ValidationLabeledData_dummy.dat"
 )
 
+
+# constants from TA baseline training
 TARGETS = 'pr_mean, rt_mean, rr_stdev, userid'
+
+
+# our model path for logging and saving
+SAVE_MODEL_PATH = os.path.dirname(os.path.abspath(__file__)) + "/../../log"

@@ -5,6 +5,9 @@ import torch.nn.functional as F
 from src.legacy.TABaseline.code import Preprocessor as pp
 import math
 
+
+# TODO: try using inheritance instead of copying code over
+
 class Conv1DBNLinear(nn.Module):
     """YVG NOTE: based on the name, the network seems to be a combination of deep belief net and CNN"""
     def __init__(self,
