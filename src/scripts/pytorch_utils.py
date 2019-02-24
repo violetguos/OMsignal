@@ -166,7 +166,6 @@ def entropy_term(outputs):
     :param outputs: outputs on which to compute the NLL
     :return: loss term
     """
-    loss = torch.autograd.Variable(outputs, requires_grad=True)
-    print(loss.data.cpu().numpy())
-    print(torch.log(loss), '\n')
-    return -torch.sum(torch.log(loss)*loss, dim=1)
+    loss = -torch.sum(torch.exp(outputs)*outputs, dim=1)
+    loss = torch.autograd.Variable(loss, requires_grad=True)
+    return loss

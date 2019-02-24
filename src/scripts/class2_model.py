@@ -47,8 +47,8 @@ def fetch_dataloaders(train_data, train_labels, valid_data, valid_labels, batch_
     :param unlabeled_data:
     :return: dataloaders of input data
     """
-    train_loader = get_dataloader(train_data, train_labels, batch_size=batch_size, transform=transform, task_type="Regression")
-    valid_loader = get_dataloader(valid_data, valid_labels, batch_size=batch_size, transform=transform, task_type="Regression") #Only uses original validation data
+    train_loader = get_dataloader(train_data, train_labels, transform, batch_size=batch_size, task_type="Regression")
+    valid_loader = get_dataloader(valid_data, valid_labels, transform, batch_size=batch_size, task_type="Regression") #Only uses original validation data
 
     return train_loader, valid_loader
 
@@ -115,16 +115,19 @@ if __name__ == '__main__':
     while (temp_flag):
 
         # Incorporating new samples into training array
-        # new_train_data, new_train_label = merge_into_training(X_train, X_valid, new_data, new_labels)
+        # new_train_data, new_train_label = merge_into_training(X_train, y_train, new_data, new_labels)
 
         # Creating dataloaders
         # train_loader, valid_loader = fetch_dataloaders(new_train_data, new_train_label, X_valid, y_valid)
         train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid)
-
+        print(type(train_loader), '\n')
+        for sample, label in train_loader:
+            print(sample, np.shape(sample), label, np.shape(label), np.amax(label, axis=0))
+            break
         # Training
         train_losses, train_accs, valid_losses, val_accs = train_network(model, 0, "Classification", device, train_loader,
                                                                          valid_loader, optimizer, loss_function,
-                                                                         save_name="TestModel", num_epochs=epochs)
+                                                                         save_name="TestModel", num_epochs=epochs, entropy=False)
         log_training(model, 3, 'Classification', train_losses, valid_losses,
                      train_accs=train_accs, valid_accs=val_accs)
 
