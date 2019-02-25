@@ -11,9 +11,12 @@ from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_t
 from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNClassification
 from src.scripts.dataloader_utils import import_OM
 from src.scripts.pytorch_utils import train_network
-from torch.utils.data import DataLoader, TensorDataset
-from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import log_training
+from src.legacy.TeamB1pomt5.code.omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import log_training, get_id_mapping, map_ids
 from tqdm import tqdm
+from torchvision import transforms
+
 
 """
 Class 2 naive implementation
@@ -89,23 +92,40 @@ if __name__ == '__main__':
 
     # Import the data but only ID labels, concatenating train and valid sets
     X_train, X_valid, y_train, y_valid = import_train_valid('ids', cluster=cluster)
+
     # if args.combine:
     #     X_train = np.concatenate((X_train, X_valid), axis=0)
     #     y_train = np.concatenate((y_train, y_valid), axis=0)
     train_batch_size, valid_batch_size = 160, 160
 
+    # Remapping IDs
+    mapping = get_id_mapping(y_train[:,0])
+    y_train[:,0] = map_ids(y_train[:,0], mapping)
+    y_valid[:,0] = map_ids(y_valid[:,0], mapping)
+
+    # Preprocess the data (moved back this here since we wont use a dataloader for ranking predictions)
+    preprocess = Preprocessor()
+    preprocess.to(device)
+    X_train = preprocess(torch.from_numpy(X_train)).numpy()
+    X_valid = preprocess(torch.from_numpy(X_valid)).numpy()
+
     #Import unlabeled data
     unlabeled = import_OM("unlabeled")
     unlabeled = unlabeled[:,np.newaxis,:]
 
-    #Defining ID Classification model
-    model = CNNClassification(3750, 32, conv1_num_filters=16, conv2_num_filters=2, conv_ksize=64, conv_stride=1, conv_padding=4,
-                                               pool_ksize=5, pool_stride=8, pool_padding=1,  num_linear=100, p=0.5)
-    model.to(device)
-    #Defining optimizer
-    optimizer = torch.optim.Adagrad(model.parameters(), weight_decay=0, lr=0.1)
+    # Add transformations
+    trsfrm = transforms.RandomChoice([RandomCircShift(0.5), RandomNegate(0.5), \
+        RandomReplaceNoise(0.5), RandomDropoutBurst(0.5)])
 
-    epochs = 5
+    #Defining ID Classification model
+    model = CNNClassification(3750, 32, conv1_num_filters=32, conv2_num_filters=32, conv_ksize=64, conv_stride=1, conv_padding=4,
+                                               pool_ksize=5, pool_stride=8, pool_padding=1,  num_linear=256, p=0.5)
+    model.to(device)
+
+    #Defining optimizer
+    optimizer = torch.optim.Adagrad(model.parameters(), weight_decay=1E-3, lr=0.1)
+
+    epochs = 100
     loss_function = torch.nn.NLLLoss()
 
     temp_flag = True
@@ -119,15 +139,12 @@ if __name__ == '__main__':
 
         # Creating dataloaders
         # train_loader, valid_loader = fetch_dataloaders(new_train_data, new_train_label, X_valid, y_valid)
-        train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid)
-        print(type(train_loader), '\n')
-        for sample, label in train_loader:
-            print(sample, np.shape(sample), label, np.shape(label), np.amax(label, axis=0))
-            break
+        train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid, transform=trsfrm)
+
         # Training
         train_losses, train_accs, valid_losses, val_accs = train_network(model, 0, "Classification", device, train_loader,
                                                                          valid_loader, optimizer, loss_function,
-                                                                         save_name="TestModel", num_epochs=epochs, entropy=False)
+                                                                         save_name="TestModel", num_epochs=epochs, entropy=True)
         log_training(model, 3, 'Classification', train_losses, valid_losses,
                      train_accs=train_accs, valid_accs=val_accs)
 

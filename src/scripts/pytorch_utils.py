@@ -11,6 +11,7 @@ from src.legacy.TeamB1pomt5.code.config import MODELS_DIR
 from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNClassification
 from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import log_training
 from tqdm import tqdm
+from torch.nn.functional import log_softmax
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -166,6 +167,6 @@ def entropy_term(outputs):
     :param outputs: outputs on which to compute the NLL
     :return: loss term
     """
-    loss = -torch.sum(torch.exp(outputs)*outputs, dim=1)
+    loss = -1. * torch.mean(torch.sum(((outputs * torch.exp(outputs))), dim=1), dim=0)
     loss = torch.autograd.Variable(loss, requires_grad=True)
     return loss

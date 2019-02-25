@@ -13,13 +13,13 @@ import os
 import sys
 sys.path.append(os.path.abspath(os.path.join('..', '..')))
 
-from config import LOG_DIR, MODELS_DIR
-from omsignal.utils.dataloader_utils import import_train_valid
-from omsignal.utils.preprocessor import Preprocessor
-from omsignal.utils.pytorch_utils import get_id_mapping, map_ids, Predict_and_Score, train_PR_CNN, train_RT_Ranker, train_ID_CNN
-from omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
-from omsignal.base_networks import CNNRegression, CNNClassification
-from omsignal.om_networks import CNNRank
+from src.legacy.TeamB1pomt5.code.config import LOG_DIR, MODELS_DIR
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_train_valid
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import get_id_mapping, map_ids, Predict_and_Score, train_PR_CNN, train_RT_Ranker, train_ID_CNN
+from src.legacy.TeamB1pomt5.code.omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
+from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNRegression, CNNClassification
+from src.legacy.TeamB1pomt5.code.omsignal.om_networks import CNNRank
 from torchvision import transforms
 
 if __name__ == '__main__':
