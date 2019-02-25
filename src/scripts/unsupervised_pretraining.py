@@ -72,10 +72,9 @@ def get_hyperparameters(config, autoencoder=False):
     return hyperparam
 
 
-def train_autoencoder_per_epoch(epoch, model, optimizer, batch_size, train_loader):
+def train_autoencoder_per_epoch(model, optimizer, batch_size, loader):
     """
     Trains the autoeoncoder on one epoch, called by an outer loop that controls total number of epoches
-    :param epoch: current number of epoch
     :param model: the autoencoder model created under src/algorithms
     :param optimizer: pytorch optim
     :param batch_size: size of one mini-batch
@@ -83,9 +82,8 @@ def train_autoencoder_per_epoch(epoch, model, optimizer, batch_size, train_loade
     :return: at the end of epoch, the MSE loss
     """
     model.train()
-    total_batch = constants.UNLABELED_SHAPE[0] // batch_size
 
-    for batch_idx, (data, _) in enumerate(train_loader):
+    for batch_idx, (data, _) in enumerate(loader):
         data = data.to(device)
         # accommodates the TA's preprocessor dimension
         data = data.view(batch_size, 1, 3750)
@@ -100,11 +98,8 @@ def train_autoencoder_per_epoch(epoch, model, optimizer, batch_size, train_loade
         optimizer.zero_grad()
         MSE_loss.backward()
         optimizer.step()
-        print(
-            "epoch [{}], batch [{}/{}], MSE_loss:{:.4f}".format(
-                epoch, batch_idx, total_batch, MSE_loss.data
-            )
-        )
+
+
     return MSE_loss.item()
 
 
@@ -120,7 +115,6 @@ def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
     loss_history.mode = "train"
     for epoch in range(autoencoder_hp_dict["nepoch"]):
         train_mse_loss = train_autoencoder_per_epoch(
-            epoch,
             autoencoder,
             AE_optimizer,
             autoencoder_hp_dict["batchsize"],
@@ -131,16 +125,19 @@ def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
 
         if epoch % save_freq == 0:
             # Save model every save_freq epochs
-            loss_history.save(autoencoder, epoch, verbose=True)
+            loss_history.save(autoencoder, epoch, verbose=False)
+        print(
+            "epoch [{}], MSE_loss:{:.4f}".format(
+                epoch, train_mse_loss
+            )
+        )
 
     print("Autoencoder training done")
 
     return autoencoder
 
 
-def trainer_prediction(
-    model_hp_dict, autoencoder, train_loader, valid_loader, loss_history
-):
+def trainer_prediction(model_hp_dict, autoencoder, train_loader, valid_loader, loss_history):
 
     # Model initialization
     target_labels = targets.split(",")
@@ -161,7 +158,7 @@ def trainer_prediction(
     path = loss_history.dir + "/"
 
     loss_history.prefix = "autoencoder_cnn_model_cnn_part_epoch"
-    model_hp_dict['tbpath'] = os.path.join(path, "tensorboard")
+    model_hp_dict["tbpath"] = os.path.join(path, "tensorboard")
     chkptg_freq = model_hp_dict["nepoch"] // 10
 
     # define the model
@@ -173,7 +170,7 @@ def trainer_prediction(
     optimizer = optim.Adam(
         [
             {"params": model.encoder.parameters(), "lr": 0},
-            {"params": model.decoder.parameters(), "lr": 0},
+            # {"params": model.decoder.parameters(), "lr": 0},
             {"params": model.batch_norm0.parameters()},
             {"params": model.batch_norm1.parameters()},
             {"params": model.batch_norm2.parameters()},
@@ -221,6 +218,10 @@ def trainer_prediction(
         path,
     )
 
+    print("save cnn model", loss_history.dir)
+    np.savetxt(os.path.join(loss_history.dir, "cnn_train.txt"), np.array(train[0]))
+    np.savetxt(os.path.join(loss_history.dir, "cnn_valid.txt"), np.array(valid[0]))
+
     print("CNN training Done")
 
 
@@ -233,7 +234,6 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
         constants.VALID_LABELED_DATASET_PATH, False, target=targets
     )
 
-    # testing on the small subset
     unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
 
     train_loader = DataLoader(
@@ -247,6 +247,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
         autoencoder_hp_dict["batchsize"],
         shuffle=False,
         num_workers=1,
+        drop_last=True,
     )
     return train_loader, valid_loader, unlabeled_loader
 
@@ -257,7 +258,6 @@ def run(autoencoder_hp_dict, model_hp_dict):
     train_loader, valid_loader, unlabeled_loader = load_data(
         model_hp_dict, autoencoder_hp_dict
     )
-    print("type(unlabeled_loader)", type(unlabeled_loader))
 
     # train the autoencoder first
     ae = trainer_ae(autoencoder_hp_dict, unlabeled_loader, autoencoder_loss_history)
@@ -274,11 +274,9 @@ def main(config_ae, config_model):
     autoencoder_config = configparser.ConfigParser()
     autoencoder_config.read(config_ae)
     autoencoder_hp_dict = get_hyperparameters(autoencoder_config, autoencoder=True)
-    print(autoencoder_hp_dict)
     model_config = configparser.ConfigParser()
     model_config.read(config_model)
     model_hp_dict = get_hyperparameters(model_config)
-    print(model_hp_dict)
 
     # Call functions to run models
     run(autoencoder_hp_dict, model_hp_dict)

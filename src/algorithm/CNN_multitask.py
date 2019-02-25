@@ -28,9 +28,9 @@ class Conv1DBNLinear(nn.Module):
             self.encoder = nn.Sequential(
                 nn.Linear(3750, 1024), nn.ReLU(True), nn.Linear(1024, 256), nn.ReLU(True)
             )
-            self.decoder = nn.Sequential(
-                nn.Linear(256, 1024), nn.ReLU(True), nn.Linear(1024, 3750)
-            )
+            # self.decoder = nn.Sequential(
+            #     nn.Linear(256, 1024), nn.ReLU(True), nn.Linear(1024, 3750)
+            # )
 
         lout = 3750
 
@@ -118,7 +118,7 @@ class Conv1DBNLinear(nn.Module):
 
         if self.autoencoder == True:
             x = self.encoder(x)
-            x = self.decoder(x)
+            # x = self.decoder(x)
         x = self.batch_norm0(x)
 
         x = self.dropout(

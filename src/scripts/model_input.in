@@ -1,8 +1,8 @@
 [optimizer]
 learning_rate = 0.001
 momentum = 0.9
-nepoch = 100
-batch_size = 16 
+nepoch = 50
+batch_size = 16
 
 [model]
 name = CONV1DBN
