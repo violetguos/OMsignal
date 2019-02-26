@@ -110,7 +110,6 @@ def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
     AE_optimizer = optim.Adam(
         autoencoder.parameters(), lr=autoencoder_hp_dict["learning_rate"]
     )
-    # TODO: make ModelCache for both the autoencoder part and the CNN part
     loss_history.prefix = "autoencoder"
     loss_history.mode = "train"
     for epoch in range(autoencoder_hp_dict["nepoch"]):
@@ -170,7 +169,7 @@ def trainer_prediction(model_hp_dict, autoencoder, train_loader, valid_loader, l
     optimizer = optim.Adam(
         [
             {"params": model.encoder.parameters(), "lr": 0},
-            # {"params": model.decoder.parameters(), "lr": 0},
+            #{"params": model.decoder.parameters(), "lr": 0},
             {"params": model.batch_norm0.parameters()},
             {"params": model.batch_norm1.parameters()},
             {"params": model.batch_norm2.parameters()},

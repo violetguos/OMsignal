@@ -9,10 +9,10 @@ class AutoEncoder(nn.Module):
 
         # the number of hidden units are hardcoded for now.
         self.encoder = nn.Sequential(
-            nn.Linear(3750, 1024), nn.ReLU(True), nn.Linear(1024, 256), nn.ReLU(True)
+            nn.Linear(3750, 2048), nn.ReLU(True), nn.Linear(2048, 1024), nn.ReLU(True)
         )
         self.decoder = nn.Sequential(
-            nn.Linear(256, 1024), nn.ReLU(True), nn.Linear(1024, 3750)
+            nn.Linear(1024, 2048), nn.ReLU(True), nn.Linear(2048, 3750)
         )
 
     def forward(self, x):

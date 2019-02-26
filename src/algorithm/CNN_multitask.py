@@ -26,13 +26,13 @@ class Conv1DBNLinear(nn.Module):
         if self.autoencoder == True:
             # the number of hidden units are hardcoded for now.
             self.encoder = nn.Sequential(
-                nn.Linear(3750, 1024), nn.ReLU(True), nn.Linear(1024, 256), nn.ReLU(True)
+                nn.Linear(3750, 2048), nn.ReLU(True), nn.Linear(2048, 1024), nn.ReLU(True)
             )
             # self.decoder = nn.Sequential(
             #     nn.Linear(256, 1024), nn.ReLU(True), nn.Linear(1024, 3750)
             # )
-
-        lout = 3750
+        # lout = 3750
+        lout = 1024
 
         self.conv1 = nn.Conv1d(input_size, hidden_size, kernel_size)
         lout = self.l_out_conv1D(lout, kernel_size)
@@ -71,6 +71,7 @@ class Conv1DBNLinear(nn.Module):
         lout = self.l_out_maxpool1D(lout, pool_size)
 
         # YVG NOTE: fully connected layer in the end
+
         if isinstance(output_size, (list, tuple)):
             self.out = nn.ModuleList(
                 [

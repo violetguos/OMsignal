@@ -1,7 +1,7 @@
 [optimizer]
 learning_rate = 0.0002
 momentum = 0.9
-nepoch = 35
+nepoch = 15
 batch_size = 32
 
 [model]
