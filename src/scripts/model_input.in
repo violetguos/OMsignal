@@ -1,0 +1,23 @@
+[optimizer]
+learning_rate = 0.001
+momentum = 0.9
+nepoch = 25
+batch_size = 16
+
+[model]
+name = CONV1DBN
+hidden_size = 16
+dropout = 0.1
+n_layers = 1
+kernel_size = 8
+pool_size = 4 
+
+[loss]
+weight1 = 1
+weight2 = 1
+weight3 = 1
+weight4 = 1
+
+[path]
+model = models
+tensorboard = tensorboard

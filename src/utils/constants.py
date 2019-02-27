@@ -12,14 +12,15 @@ VALID_LABELED_DATASET_PATH = os.path.join(
 UNLABELED_DATASET_PATH = os.path.join(REAL_OMSIGNAL_PATH, "MILA_UnlabeledData.dat")
 
 # dimensions, indices
-LABELED_SHAPE = [160, 3754]
+LABELED_SHAPE = (160, 3754)
 PR_MEAN_IDX = 3750
 RT_MEAN_IDX = 3751
 RR_STDDEV_IDX = 3752
 ID_IDX = 3753
 
-UNLABELED_SHAPE = [657233, 3750]
-
+UNLABELED_SHAPE = (657233, 3750)
+SHAPE_OF_ONE_DATA_POINT = (1, 3750)
+SIZE_OF_DATA_POINT_BYTES = 3750 * 4 # data dim times size of a float32
 
 # legacy code path
 TA_LEGACY_CODE = (
@@ -45,3 +46,11 @@ T5_FAKE_VALID_LABELED_DATA = (
     os.path.dirname(os.path.abspath(__file__))
     + "/../legacy/TeamB1pomt5/code/data/MILA_ValidationLabeledData_dummy.dat"
 )
+
+
+# constants from TA baseline training
+TARGETS = 'pr_mean, rt_mean, rr_stdev, userid'
+
+
+# our model path for logging and saving
+SAVE_MODEL_PATH = os.path.dirname(os.path.abspath(__file__)) + "/../../log"

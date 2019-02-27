@@ -1,12 +1,13 @@
 """
-Author: Y. Violet Guo
-Used to see the class of the final model
+Loads the TA'S FINAL PICKLED model
+Run a dummy/fake data validation step with TA's model
 """
 
+import sys
+import os
 import torch
 from src.utils import constants
 from src.legacy.TABaseline.code.ecgdataset import ECGDataset
-import os
 import src.legacy.TABaseline.code.baseline_models as models
 
 
@@ -21,17 +22,18 @@ def torch_summarize(model, show_weights=True, show_parameters=True):
             print(module)
 
 
-def run(model):
+def run(model, device):
+    print("in runmodel")
     toy_data = ECGDataset(constants.T5_FAKE_VALID_LABELED_DATA)
     toy_loader = torch.utils.data.DataLoader(toy_data)
     model.eval()
     with torch.no_grad():
         for i, (input, target) in enumerate(toy_loader):
-            target = target.cuda(non_blocking=True)
-
+            print("input {} target {}".format(input, target))
+            input = input.to(device)
             # compute output
             output = model(input)
-            print(output)
+            print("predicted", output)
 
 
 if __name__ == "__main__":
@@ -46,20 +48,25 @@ if __name__ == "__main__":
     kernel_size = 8
     pool_size = 4
 
-    targets = 'pr_mean, rt_mean, rr_stdev, userid'
+    print(sys.path)
+
+    targets = "pr_mean, rt_mean, rr_stdev, userid"
     target_labels = targets.split(",")
 
     target_labels = [s.lower().strip() for s in target_labels]
 
     target_out_size_dict = {"pr_mean": 1, "rt_mean": 1, "rr_stdev": 1, "userid": 32}
-    out_size = [
-        target_out_size_dict[a] for a in target_labels
-    ]
+    out_size = [target_out_size_dict[a] for a in target_labels]
     model = models.Conv1DBNLinear(
         1, out_size, hidden_size, kernel_size, pool_size, dropout
     )
 
-    state_dict = torch.load(constants.TA_LEGACY_MODEL, map_location=torch.device("cpu"))
+    device = torch.device("cuda")
+
+    state_dict = torch.load(
+        constants.TA_LEGACY_MODEL
+    )  # map_location=torch.device("cpu"))
     model.load_state_dict(state_dict)
-    #print(torch_summarize(model, show_weights=False))
-    run(model)
+    model.to(device)
+    # print(torch_summarize(state_dict, show_weights=False))
+    run(model, device)
