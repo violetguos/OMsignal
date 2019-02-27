@@ -64,15 +64,46 @@ def training_loop(training_dataloader, validation_dataloader, model):
     :return: model
     """
 
-def evaluate_unlabeled(unlabeled_data, threshold=0.5):
+def evaluate_unlabeled(unlabeled_data, model, device, threshold=0.8):
     """
-    Unlabeled data is not shufled when turned into tensor for evaluation
-    Making it easier to give it back to training at beginning of loop
+    This function takes in a vector of unlabeled_data, a model and a threshold.
+    It predicts a label for the unlabeled data and keeps the prediction with
+    sufficiently high confidence
     :param unlabeled_data: data to be predicted
+    :param model: prediction model
     :param threshold: confidence threshold for accepting label as true
-    :return: new_labeled_data
+    :return: labeled, unlabeled, top_pred: returns a np array of the labeled data with label,
+    a numpy array of still unlabeled data and an array describing the labeled data
     """
+    best_preds = []
+    pred = []
+    labeled = []
+    unlabeled = []
+    labeled_idx = []
+    unlabeled_data = unlabeled_data
+    unlabeled_tensor = torch.Tensor(unlabeled_data).float().to(device)
+    unlabeled_dataset = torch.utils.data.TensorDataset(unlabeled_tensor)
+    unlabeled_dataloader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=1)
 
+    for idx, sample in enumerate(unlabeled_dataloader):
+        output = model(sample[0]) # Really need to store that?
+        pred_prob = torch.max(torch.exp(output.data), 1)
+        pred_class = torch.argmax(torch.exp(output.data), 1)
+        print(output, output.data)
+        if (pred_prob[0] > threshold):
+            labeled.append(sample[0].data)
+            pred.append(pred_class[0])
+            best_preds.append((idx, pred_prob[0], pred_class[0]))
+            labeled_idx.append(idx)
+
+    for i in range(len(unlabeled_data)):
+        if i in labeled_idx:
+            x = 1
+        else:
+            unlabeled.append((unlabeled_data[i]))
+
+    print(np.shape(np.array(labeled)[:,np.newaxis]), np.shape(np.array(pred)[:,np.newaxis]), np.shape(unlabeled))
+    return np.concatenate((np.array(labeled)[:,np.newaxis],np.array(pred)[:,np.newaxis]),axis=1), np.array(unlabeled), best_preds
 
 if __name__ == '__main__':
     # Parse input arguments
@@ -111,44 +142,47 @@ if __name__ == '__main__':
 
     #Import unlabeled data
     unlabeled = import_OM("unlabeled")
-    unlabeled = unlabeled[:,np.newaxis,:]
-
+    unlabeled = unlabeled[:,np.newaxis,:].astype(np.float32)
+    unlabeled = preprocess(torch.from_numpy(unlabeled)).numpy()
     # Add transformations
     trsfrm = transforms.RandomChoice([RandomCircShift(0.5), RandomNegate(0.5), \
         RandomReplaceNoise(0.5), RandomDropoutBurst(0.5)])
 
     #Defining ID Classification model
     model = CNNClassification(3750, 32, conv1_num_filters=32, conv2_num_filters=32, conv_ksize=64, conv_stride=1, conv_padding=4,
-                                               pool_ksize=5, pool_stride=8, pool_padding=1,  num_linear=256, p=0.5)
+                                               pool_ksize=5, pool_stride=8, pool_padding=1,  num_linear=1000, p=0.5)
     model.to(device)
 
     #Defining optimizer
-    optimizer = torch.optim.Adagrad(model.parameters(), weight_decay=1E-3, lr=0.1)
+    optimizer = torch.optim.Adagrad(model.parameters(), weight_decay=1E-3, lr=0.005)
 
-    epochs = 100
+    epochs = 70
     loss_function = torch.nn.NLLLoss()
 
-    temp_flag = True
-    new_data = []
-    new_labels = []
-
-    while (temp_flag):
-
-        # Incorporating new samples into training array
-        # new_train_data, new_train_label = merge_into_training(X_train, y_train, new_data, new_labels)
+    i = 0
+    while i < 3:
 
         # Creating dataloaders
-        # train_loader, valid_loader = fetch_dataloaders(new_train_data, new_train_label, X_valid, y_valid)
         train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid, transform=trsfrm)
+        # train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid, transform=trsfrm)
 
         # Training
+        model.train()
         train_losses, train_accs, valid_losses, val_accs = train_network(model, 0, "Classification", device, train_loader,
                                                                          valid_loader, optimizer, loss_function,
                                                                          save_name="TestModel", num_epochs=epochs, entropy=True)
+
+        # Logging training info
         log_training(model, 3, 'Classification', train_losses, valid_losses,
                      train_accs=train_accs, valid_accs=val_accs)
 
-        #new_data, new_labels = evaluate_unlabeled(torch.Tensor(unlabeled))
 
-        temp_flag = False
+        # Making predictions, obtaining new samples
+        model.eval()
+        labeled, unlabeled, best_predictions = evaluate_unlabeled(unlabeled[:1000], model, device)
+        new_data, new_labels = labeled[:, :-1], labeled[:, -1]
+        i += 1
+
+        # Incorporating new samples into training array
+        X_train, y_train = merge_into_training(X_train, y_train, new_data, new_labels)
 
