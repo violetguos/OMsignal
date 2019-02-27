@@ -12,14 +12,12 @@ n_layers = 1
 kernel_size = 8
 pool_size = 4 
 
-# TODO: figure out what this does
 [loss]
 weight1 = 1
 weight2 = 1
 weight3 = 1
 weight4 = 1
 
-# TODO: run abs path concat in ini files
 [path]
 model = models
 tensorboard = tensorboard

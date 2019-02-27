@@ -1,5 +1,4 @@
 """
-Author: Y. Violet Guo
 Loads the TA'S FINAL PICKLED model
 Run a dummy/fake data validation step with TA's model
 """
@@ -37,7 +36,6 @@ def run(model, device):
             print("predicted", output)
 
 
-
 if __name__ == "__main__":
     learning_rate = 0.001
     momentum = 0.9
@@ -63,10 +61,12 @@ if __name__ == "__main__":
         1, out_size, hidden_size, kernel_size, pool_size, dropout
     )
 
-    device = torch.device('cuda')
+    device = torch.device("cuda")
 
-    state_dict = torch.load(constants.TA_LEGACY_MODEL)#map_location=torch.device("cpu"))
+    state_dict = torch.load(
+        constants.TA_LEGACY_MODEL
+    )  # map_location=torch.device("cpu"))
     model.load_state_dict(state_dict)
     model.to(device)
-    #print(torch_summarize(state_dict, show_weights=False))
+    # print(torch_summarize(state_dict, show_weights=False))
     run(model, device)

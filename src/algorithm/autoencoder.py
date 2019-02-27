@@ -3,6 +3,7 @@ from src.legacy.TABaseline.code import Preprocessor as pp
 
 
 class AutoEncoder(nn.Module):
+    """A regular fully connected Auto encoder"""
     def __init__(self):
         super(AutoEncoder, self).__init__()
         self.preprocess = pp.Preprocessor()

@@ -15,17 +15,17 @@ def save_args(args):
             f.write("{}={}\n".format(k, v))
 
 
-# TODO: make them into an abstract methods
-
-
 class ModelCache:
     """create a new object for each experiment"""
 
-    def __init__(self, _prefix="model_cache", _mode="train"):
+    def __init__(self, _prefix="model_cache", _mode="train", _suffix=None):
         self.prefix = _prefix
         self.mode = _mode
         self.time_freeze = self.time_gen()
-        self.dir = os.path.join(SAVE_MODEL_PATH, self.time_freeze)
+        if _suffix:
+            self.dir = os.path.join(SAVE_MODEL_PATH, self.time_freeze + _suffix)
+        else:
+            self.dir = os.path.join(SAVE_MODEL_PATH, self.time_freeze)
 
     def time_gen(self):
         fmt = "%Y_%m_%d_%H_%M_%S_"

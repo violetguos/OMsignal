@@ -6,10 +6,9 @@ from src.legacy.TABaseline.code import Preprocessor as pp
 import math
 
 
-# TODO: try using inheritance instead of copying code over
 
 class Conv1DBNLinear(nn.Module):
-    """YVG NOTE: based on the name, the network seems to be a combination of deep belief net and CNN"""
+    """combination of deep belief net and CNN"""
     def __init__(self,
                  input_size,
                  output_size,
@@ -21,6 +20,7 @@ class Conv1DBNLinear(nn.Module):
                  ):
         super(Conv1DBNLinear, self).__init__()
         self.preprocess = pp.Preprocessor()
+
         self.batch_norm0 = nn.BatchNorm1d(input_size)
         self.autoencoder = autoencoder
         if self.autoencoder == True:
@@ -29,7 +29,7 @@ class Conv1DBNLinear(nn.Module):
                 nn.Linear(3750, 2048), nn.ReLU(True), nn.Linear(2048, 1024), nn.ReLU(True)
             )
             # self.decoder = nn.Sequential(
-            #     nn.Linear(256, 1024), nn.ReLU(True), nn.Linear(1024, 3750)
+            #     nn.Linear(1024, 2048), nn.ReLU(True), nn.Linear(2048, 3750)
             # )
         # lout = 3750
         lout = 1024

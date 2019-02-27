@@ -1,5 +1,5 @@
 [optimizer]
-learning_rate = 0.0002
+learning_rate = 0.0005
 momentum = 0.9
 nepoch = 15
 batch_size = 32
