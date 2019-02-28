@@ -7,7 +7,7 @@ sys.path.append(os.path.abspath(os.path.join('..', '..')))
 from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import get_dataloader
 
 from src.legacy.TeamB1pomt5.code.config import LOG_DIR, MODELS_DIR
-from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_train_valid
+from src.scripts.dataloader_utils import import_train_valid
 from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNClassification
 from src.scripts.dataloader_utils import import_OM
 from src.scripts.pytorch_utils import train_network
@@ -76,34 +76,35 @@ def evaluate_unlabeled(unlabeled_data, model, device, threshold=0.8):
     a numpy array of still unlabeled data and an array describing the labeled data
     """
     best_preds = []
+    best_preds_label = []
+    best_samples = []
     pred = []
     labeled = []
     unlabeled = []
     labeled_idx = []
-    unlabeled_data = unlabeled_data
-    unlabeled_tensor = torch.Tensor(unlabeled_data).float().to(device)
-    unlabeled_dataset = torch.utils.data.TensorDataset(unlabeled_tensor)
-    unlabeled_dataloader = torch.utils.data.DataLoader(unlabeled_dataset, batch_size=1)
+    # unlabeled_data = unlabeled_data.reshape(unlabeled_data.shape[0], 1, unlabeled_data.shape[1]).float().cuda()
+    unlabeled_data = unlabeled_data.astype(np.float32)
 
-    for idx, sample in enumerate(unlabeled_dataloader):
-        output = model(sample[0]) # Really need to store that?
-        pred_prob = torch.max(torch.exp(output.data), 1)
-        pred_class = torch.argmax(torch.exp(output.data), 1)
-        print(output, output.data)
-        if (pred_prob[0] > threshold):
-            labeled.append(sample[0].data)
-            pred.append(pred_class[0])
-            best_preds.append((idx, pred_prob[0], pred_class[0]))
-            labeled_idx.append(idx)
+    output = model(torch.Tensor(unlabeled_data).cuda()) # Really need to store that?
+    sum__ = torch.exp(output[0])
+    sum_ = torch.sum(torch.exp(output[0]))
+    pred_prob= torch.max(torch.exp(output.data), 1)[0]
+    pred_class = torch.max(torch.exp(output.data), 1)[1]
+    print(output, output.data)
+    best_preds = [pred_prob[i] for i in pred_prob if i > threshold]
+    best_preds_label = [pred_class[i] for i in pred_prob if i > threshold]
+    best_samples = [unlabeled_data[i] for i in pred_prob if i > threshold]
+    best_idx = [i for i in pred_prob if i > threshold]
+        # labeled.append(sample[0].data)
+        # pred.append(pred_class[0])
+        # best_preds.append((idx, pred_prob[0], pred_class[0]))
+        # labeled_idx.append(idx)
 
-    for i in range(len(unlabeled_data)):
-        if i in labeled_idx:
-            x = 1
-        else:
-            unlabeled.append((unlabeled_data[i]))
+    unlabeled = [unlabeled_data[i] for i in range(1, len(unlabeled_data)) if i not in best_idx]
 
-    print(np.shape(np.array(labeled)[:,np.newaxis]), np.shape(np.array(pred)[:,np.newaxis]), np.shape(unlabeled))
-    return np.concatenate((np.array(labeled)[:,np.newaxis],np.array(pred)[:,np.newaxis]),axis=1), np.array(unlabeled), best_preds
+    # print(np.shape(np.array(labeled)[:,np.newaxis]), np.shape(np.array(pred)[:,np.newaxis]), np.shape(unlabeled))
+    # return np.concatenate((np.array(labeled)[:,np.newaxis],np.array(pred)[:,np.newaxis]),axis=1), np.array(unlabeled), best_preds
+    return np.concatenate((np.array(best_samples[:,np.newaxis]), np.array(best_preds_label[:,np.newaxis])), dim=1), np.array(unlabeled)
 
 if __name__ == '__main__':
     # Parse input arguments
@@ -115,11 +116,14 @@ if __name__ == '__main__':
     # Seeding
     np.random.seed(23)
 
+    torch.cuda.init()
+
     # Configure for GPU (or not)
-    cluster = torch.cuda.is_available()
-    # cluster = False
-    print('GPU available: {}'.format(cluster))
+    # cluster = torch.cuda.is_available()
+    cluster = False
+    print('On cluster: {}'.format(cluster))
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print('GPU available: {}'.format(device))
 
     # Import the data but only ID labels, concatenating train and valid sets
     X_train, X_valid, y_train, y_valid = import_train_valid('ids', cluster=cluster)
@@ -141,9 +145,10 @@ if __name__ == '__main__':
     X_valid = preprocess(torch.from_numpy(X_valid)).numpy()
 
     #Import unlabeled data
-    unlabeled = import_OM("unlabeled")
+    unlabeled = import_OM("unlabeled", cluster=cluster)
     unlabeled = unlabeled[:,np.newaxis,:].astype(np.float32)
     unlabeled = preprocess(torch.from_numpy(unlabeled)).numpy()
+
     # Add transformations
     trsfrm = transforms.RandomChoice([RandomCircShift(0.5), RandomNegate(0.5), \
         RandomReplaceNoise(0.5), RandomDropoutBurst(0.5)])
@@ -164,6 +169,7 @@ if __name__ == '__main__':
 
         # Creating dataloaders
         train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid, transform=trsfrm)
+
         # train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid, transform=trsfrm)
 
         # Training
