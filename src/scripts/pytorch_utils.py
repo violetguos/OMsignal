@@ -53,6 +53,10 @@ def train_ID_CNN(X_train, y_train, X_valid, y_valid, train_batch_size, valid_bat
 
 def train_network(model, task_num, task_type, device, train_dataloader, valid_dataloader, optimizer, loss_func, entropy = True,
                   num_epochs=5, save_name=None):
+    """
+
+    :rtype: object
+    """
     if task_type not in ["Regression", "Classification", "Ranking"]:
         raise ValueError("task_type must be in ['Regression', 'Classification' , 'Ranking']")
 
@@ -72,8 +76,8 @@ def train_network(model, task_num, task_type, device, train_dataloader, valid_da
             total, correct = 0, 0
         running_loss = 0.0
 
-        for input, label in tqdm(train_dataloader):
-            input, label = input.float().to(device), label[:, task_num].to(device)
+        for input, label in (train_dataloader):
+            input, label = input.float().cuda(), label[:, task_num].cuda()
             if task_type == "Classification":
                 label = label.long()
             else:
