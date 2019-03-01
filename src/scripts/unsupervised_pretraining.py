@@ -3,13 +3,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data.sampler import SubsetRandomSampler
 
 # from tensorboardX import SummaryWriter
 
 import src.legacy.TABaseline.code.baseline_models as models
 import src.legacy.TABaseline.code.scoring_function as scoreF
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
-from src.algorithm.autoencoder import AutoEncoder
+from src.algorithm.autoencoder import AutoEncoder, CnnAutoEncoder
 from src.legacy.TABaseline.code import Preprocessor as pp
 from src.data.unlabelled_data import UnlabelledDataset
 from src.legacy.TABaseline.code.baseline_multitask_main import (
@@ -82,7 +83,7 @@ def train_autoencoder_per_epoch(model, optimizer, batch_size, loader):
 def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
     # Autoencoder training
     save_freq = autoencoder_hp_dict["nepoch"] // 5
-    autoencoder = AutoEncoder().to(device)
+    autoencoder = CnnAutoEncoder().to(device)
     AE_optimizer = optim.Adam(
         autoencoder.parameters(), lr=autoencoder_hp_dict["learning_rate"]
     )
@@ -141,7 +142,7 @@ def trainer_prediction(model_hp_dict, autoencoder,
     model.to(device)
     optimizer = optim.Adam(
         [
-            {"params": model.encoder.parameters(), "lr": 0},
+            {"params": model.encoder.parameters(), "lr": 0.00001},
             # {"params": model.decoder.parameters(), "lr": 0},
             {"params": model.batch_norm0.parameters()},
             {"params": model.batch_norm1.parameters()},
@@ -208,6 +209,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
     )
 
     unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
+    #unlabeled_dataset = UnlabelledDataset(constants.TRAIN_LABELED_DATASET_PATH, False)
 
     train_loader = DataLoader(
         train_dataset, model_hp_dict["batchsize"], shuffle=True, num_workers=1
@@ -218,6 +220,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
     unlabeled_loader = DataLoader(
         unlabeled_dataset,
         autoencoder_hp_dict["batchsize"],
+        sampler=SubsetRandomSampler(list(range(0, 50000))),
         shuffle=False,
         num_workers=1,
         drop_last=True,
@@ -260,4 +263,5 @@ if __name__ == "__main__":
     # Read the ini file name from sys arg to avoid different people's different local set up
     # Use a shell script instead to run on your setup
 
-    main(sys.argv[1], sys.argv[2])
+    #main(sys.argv[1], sys.argv[2])
+    main("src/algorithm/autoencoder_input.in", "src/scripts/model_input.in")

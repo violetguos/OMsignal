@@ -2,7 +2,7 @@
 import os
 
 # path to REAL data
-REAL_OMSIGNAL_PATH = "/rap/jvb-000-aa/COURS2019/etudiants/data/omsignal/myHeartProject/"
+REAL_OMSIGNAL_PATH = "C:/Users/Etienne Proulx/Documents/IFT6759 - OMsignal" # "/rap/jvb-000-aa/COURS2019/etudiants/data/omsignal/myHeartProject/"
 TRAIN_LABELED_DATASET_PATH = os.path.join(
     REAL_OMSIGNAL_PATH, "MILA_TrainLabeledData.dat"
 )
