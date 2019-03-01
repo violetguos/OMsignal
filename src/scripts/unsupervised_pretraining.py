@@ -53,9 +53,9 @@ def train_autoencoder_per_epoch(model, optimizer, batch_size, loader):
     """
     Trains the autoeoncoder on one epoch, called by an outer loop that controls total number of epoches
     :param model: the autoencoder model created under src/algorithms
-    :param optimizer: pytorch optim
+    :param optimizer: pytorch optim or scheduler(optim)
     :param batch_size: size of one mini-batch
-    :param train_loader: the unlabelled data set loader, not the TRAIN_LABELLED_DATA
+    :param loader: the unlabelled data set loader, not the TRAIN_LABELLED_DATA
     :return: at the end of epoch, the MSE loss
     """
     model.train()
@@ -83,15 +83,17 @@ def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
     # Autoencoder training
     save_freq = autoencoder_hp_dict["nepoch"] // 5
     autoencoder = AutoEncoder().to(device)
-    AE_optimizer = optim.Adam(
+    ae_optimizer = optim.Adam(
         autoencoder.parameters(), lr=autoencoder_hp_dict["learning_rate"]
     )
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(ae_optimizer, mode='min', patience=1)
     loss_history.prefix = "autoencoder"
     loss_history.mode = "train"
     for epoch in range(autoencoder_hp_dict["nepoch"]):
         train_mse_loss = train_autoencoder_per_epoch(
             autoencoder,
-            AE_optimizer,
+            ae_optimizer,
             autoencoder_hp_dict["batchsize"],
             unlabeled_loader,
         )
@@ -103,6 +105,8 @@ def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
             loss_history.save(autoencoder, epoch, verbose=False)
         print("epoch [{}], MSE_loss:{:.4f}".format(epoch, train_mse_loss))
 
+        # learning rate reducing scheduler
+        scheduler.step(train_mse_loss)
     print("Autoencoder training done")
 
     return autoencoder
