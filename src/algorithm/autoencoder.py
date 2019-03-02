@@ -22,47 +22,19 @@ class AutoEncoder(nn.Module):
         x = self.decoder(x)
         return x
 
-
 class CnnAutoEncoder(nn.Module):
-    def __init__(self):
-        super(CnnAutoEncoder, self).__init__()
-        self.encoder = nn.Sequential(
-            nn.Conv2d(1, 16, 3, stride=3, padding=1),  # b, 16, 10, 10
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=2),  # b, 16, 5, 5
-            nn.Conv2d(16, 8, 3, stride=2, padding=1),  # b, 8, 3, 3
-            nn.ReLU(True),
-            nn.MaxPool2d(2, stride=1)  # b, 8, 2, 2
-        )
-        self.decoder = nn.Sequential(
-            nn.ConvTranspose2d(8, 16, 3, stride=2),  # b, 16, 5, 5
-            nn.ReLU(True),
-            nn.ConvTranspose2d(16, 8, 5, stride=3, padding=1),  # b, 8, 15, 15
-            nn.ReLU(True),
-            nn.ConvTranspose2d(8, 1, 2, stride=2, padding=1),  # b, 1, 28, 28
-            nn.Tanh()
-        )
-
-    def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
-
-
-class Conv1DBNLinear(nn.Module):
-    """combination of deep belief net and CNN"""
     def __init__(self,
-                 input_size,
-                 output_size,
-                 hidden_size,
-                 kernel_size=2,
-                 pool_size=2,
-                 dropout=0,
-                 ):
-        super(Conv1DBNLinear, self).__init__()
+                input_size,
+                hidden_size,
+                kernel_size=2,
+                pool_size=2,
+                dropout=0,
+                ):
+        super(CnnAutoEncoder, self).__init__()
         self.preprocess = pp.Preprocessor()
-
+        self.dropout = nn.Dropout(p=dropout)
         self.batch_norm0 = nn.BatchNorm1d(input_size)
+
         lout = 3750
 
         self.conv1 = nn.Conv1d(input_size, hidden_size, kernel_size)
@@ -76,8 +48,6 @@ class Conv1DBNLinear(nn.Module):
         self.dropout = nn.Dropout(p=dropout)
         self.dropout5 = nn.Dropout(p=0.5)
 
-        # YVG NOTE: prep for the next layer, reduce the hidden layer size by half
-        # the last hidden is now the input layer to the next
         input_size = hidden_size
         hidden_size = hidden_size // 2
 
@@ -89,8 +59,6 @@ class Conv1DBNLinear(nn.Module):
         self.pool2 = nn.MaxPool1d(pool_size)
         lout = self.l_out_maxpool1D(lout, pool_size)
 
-        # YVG NOTE: prep for the next layer
-        # next hidden layer is the same size as the previous
         input_size = hidden_size
 
         self.conv5 = nn.Conv1d(input_size, hidden_size, kernel_size)
@@ -101,32 +69,21 @@ class Conv1DBNLinear(nn.Module):
         self.pool3 = nn.MaxPool1d(pool_size)
         lout = self.l_out_maxpool1D(lout, pool_size)
 
-        # YVG NOTE: fully connected layer in the end
-
-        if isinstance(output_size, (list, tuple)):
-            self.out = nn.ModuleList(
-                [
-                    nn.Sequential(
-                        nn.Linear(hidden_size * lout, 200),
-                        nn.ReLU(),
-                        nn.Dropout(p=0.5),
-                        nn.Linear(200, 200),
-                        nn.ReLU(),
-                        nn.Dropout(p=0.5),
-                        nn.Linear(200, o)
-                    ) for o in output_size
-                ]
-            )
-        else:
-            self.out = nn.Sequential(
-                nn.Linear(hidden_size * lout, 200),
-                nn.ReLU(),
-                nn.Dropout(p=0.5),
-                nn.Linear(200, 200),
-                nn.ReLU(),
-                nn.Dropout(p=0.5),
-                nn.Linear(200, output_size)
-            )
+        self.decoder = nn.Sequential(
+            nn.Linear(hidden_size * lout, 256),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(256, 512),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(512, 1024),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(1024, 2048),
+            nn.ReLU(),
+            nn.Dropout(p=0.5),
+            nn.Linear(2048, 3750)
+        )
 
         self.nl = nn.SELU()
 
@@ -147,10 +104,6 @@ class Conv1DBNLinear(nn.Module):
 
     def forward(self, x):
         x = self.preprocess(x)
-
-        if self.autoencoder == True:
-            x = self.encoder(x)
-            # x = self.decoder(x)
         x = self.batch_norm0(x)
 
         x = self.dropout(
@@ -171,11 +124,6 @@ class Conv1DBNLinear(nn.Module):
             )
         )
 
-        if isinstance(self.out, nn.ModuleList):
-            pred = [
-                l(x.view(x.size(0), -1)) for i, l in enumerate(self.out)
-            ]
-        else:
-            pred = self.out(x.view(x.size(0), -1))
+        pred = self.decoder(x.view(x.size(0), -1))
 
         return pred

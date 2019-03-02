@@ -1,7 +1,7 @@
 [optimizer]
 learning_rate = 0.001
 momentum = 0.9
-nepoch = 25
+nepoch = 10
 batch_size = 16
 
 [model]
@@ -16,7 +16,7 @@ pool_size = 4
 weight1 = 1
 weight2 = 1
 weight3 = 1
-weight4 = 1
+weight4 = 10
 
 [path]
 model = models
