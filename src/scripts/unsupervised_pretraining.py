@@ -79,7 +79,7 @@ def train_autoencoder_per_epoch(model, optimizer, batch_size, loader):
 def trainer_ae(autoencoder, autoencoder_hp_dict, unlabeled_loader, loss_history):
     # Autoencoder training
     save_freq = autoencoder_hp_dict["nepoch"] // 5
-    autoencoder = AutoEncoder().to(device)
+    autoencoder = autoencoder.to(device)
     ae_optimizer = optim.Adam(
         autoencoder.parameters(), lr=autoencoder_hp_dict["learning_rate"]
     )
@@ -164,6 +164,33 @@ def trainer_prediction(model_hp_dict, autoencoder,
             ],
             lr=model_hp_dict["learning_rate"],
         )
+        # Initialize the prediction weights with the encode weights
+        model.conv1.load_state_dict(autoencoder.conv1.state_dict())
+        model.conv2.load_state_dict(autoencoder.conv2.state_dict())
+        model.conv3.load_state_dict(autoencoder.conv3.state_dict())
+        model.conv4.load_state_dict(autoencoder.conv4.state_dict())
+        model.conv5.load_state_dict(autoencoder.conv5.state_dict())
+        model.conv6.load_state_dict(autoencoder.conv6.state_dict())
+
+    else:
+        optimizer = optim.Adam(
+            [
+                {"params": model.encoder.parameters(), "lr": 0.00001},
+                {"params": model.batch_norm0.parameters()},
+                {"params": model.batch_norm1.parameters()},
+                {"params": model.batch_norm2.parameters()},
+                {"params": model.batch_norm3.parameters()},
+                {"params": model.conv1.parameters()},
+                {"params": model.conv2.parameters()},
+                {"params": model.conv3.parameters()},
+                {"params": model.conv4.parameters()},
+                {"params": model.conv5.parameters()},
+                {"params": model.conv6.parameters()},
+                {"params": model.out.parameters()},
+                {"params": model.nl.parameters()},
+            ],
+            lr=model_hp_dict["learning_rate"],
+        )
 
     # only the encoder present in the prediction step
     model.encoder.load_state_dict(autoencoder.encoder.state_dict())
@@ -209,7 +236,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
         constants.VALID_LABELED_DATASET_PATH, False, target=targets
     )
 
-    unlabeled_dataset = UnlabelledDataset(constants.TRAIN_LABELED_DATASET_PATH, False)
+    unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
 
     train_loader = DataLoader(
         train_dataset, model_hp_dict["batchsize"], shuffle=True, num_workers=1
@@ -238,9 +265,9 @@ def run(autoencoder, autoencoder_hp_dict, model_hp_dict):
     ae = trainer_ae(autoencoder, autoencoder_hp_dict, unlabeled_loader, autoencoder_loss_history)
 
     # then append the training on CNN from block 1
-    # trainer_prediction(
-    #     model_hp_dict, ae, train_loader, valid_loader, autoencoder_loss_history
-    # )
+    trainer_prediction(
+        model_hp_dict, ae, train_loader, valid_loader, autoencoder_loss_history
+    )
 
 
 
