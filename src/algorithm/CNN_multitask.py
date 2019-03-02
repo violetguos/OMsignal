@@ -28,11 +28,9 @@ class Conv1DBNLinear(nn.Module):
             self.encoder = nn.Sequential(
                 nn.Linear(3750, 2048), nn.ReLU(True), nn.Linear(2048, 1024), nn.ReLU(True)
             )
-            # self.decoder = nn.Sequential(
-            #     nn.Linear(1024, 2048), nn.ReLU(True), nn.Linear(2048, 3750)
-            # )
-        # lout = 3750
-        lout = 1024
+            lout = 1024
+        else:
+            lout = 3750
 
         self.conv1 = nn.Conv1d(input_size, hidden_size, kernel_size)
         lout = self.l_out_conv1D(lout, kernel_size)
