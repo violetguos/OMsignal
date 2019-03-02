@@ -3,13 +3,14 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data.sampler import SubsetRandomSampler
 
 # from tensorboardX import SummaryWriter
 
 import src.legacy.TABaseline.code.baseline_models as models
 import src.legacy.TABaseline.code.scoring_function as scoreF
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
-from src.algorithm.autoencoder import AutoEncoder
+from src.algorithm.autoencoder import AutoEncoder, CnnAutoEncoder
 from src.legacy.TABaseline.code import Preprocessor as pp
 from src.data.unlabelled_data import UnlabelledDataset
 from src.legacy.TABaseline.code.baseline_multitask_main import (
@@ -79,10 +80,10 @@ def train_autoencoder_per_epoch(model, optimizer, batch_size, loader):
     return MSE_loss.item()
 
 
-def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
+def trainer_ae(autoencoder, autoencoder_hp_dict, unlabeled_loader, loss_history):
     # Autoencoder training
     save_freq = autoencoder_hp_dict["nepoch"] // 5
-    autoencoder = AutoEncoder().to(device)
+    autoencoder = autoencoder.to(device)
     AE_optimizer = optim.Adam(
         autoencoder.parameters(), lr=autoencoder_hp_dict["learning_rate"]
     )
@@ -135,33 +136,57 @@ def trainer_prediction(model_hp_dict, autoencoder,
 
     # define the model
     model = Conv1DBNLinear(
-        1, out_size, hidden_size, kernel_size, pool_size, dropout, autoencoder=True
+        1, out_size, hidden_size, kernel_size, pool_size, dropout, autoencoder=False
     )
     # model to gpu, create optimizer, criterion and train
     model.to(device)
-    optimizer = optim.Adam(
-        [
-            {"params": model.encoder.parameters(), "lr": 0},
-            # {"params": model.decoder.parameters(), "lr": 0},
-            {"params": model.batch_norm0.parameters()},
-            {"params": model.batch_norm1.parameters()},
-            {"params": model.batch_norm2.parameters()},
-            {"params": model.batch_norm3.parameters()},
-            {"params": model.conv1.parameters()},
-            {"params": model.conv2.parameters()},
-            {"params": model.conv3.parameters()},
-            {"params": model.conv4.parameters()},
-            {"params": model.conv5.parameters()},
-            {"params": model.conv6.parameters()},
-            {"params": model.out.parameters()},
-            {"params": model.nl.parameters()},
-        ],
-        lr=model_hp_dict["learning_rate"],
-    )
+    if isinstance(autoencoder, CnnAutoEncoder):
+        optimizer = optim.Adam(
+            [
+                {"params": model.batch_norm0.parameters()},
+                {"params": model.batch_norm1.parameters()},
+                {"params": model.batch_norm2.parameters()},
+                {"params": model.batch_norm3.parameters()},
+                {"params": model.conv1.parameters(), "lr": 0.00001},
+                {"params": model.conv2.parameters(), "lr": 0.00001},
+                {"params": model.conv3.parameters(), "lr": 0.00001},
+                {"params": model.conv4.parameters(), "lr": 0.00001},
+                {"params": model.conv5.parameters(), "lr": 0.00001},
+                {"params": model.conv6.parameters(), "lr": 0.00001},
+                {"params": model.out.parameters()},
+                {"params": model.nl.parameters()},
+            ],
+            lr=model_hp_dict["learning_rate"],
+        )
 
-    # only the encoder present in the prediction step
-    model.encoder.load_state_dict(autoencoder.encoder.state_dict())
-    # model.decoder.load_state_dict(autoencoder.decoder.state_dict())
+        # Initialize the prediction weights with the encode weights
+        model.conv1.load_state_dict(autoencoder.conv1.state_dict())
+        model.conv2.load_state_dict(autoencoder.conv2.state_dict())
+        model.conv3.load_state_dict(autoencoder.conv3.state_dict())
+        model.conv4.load_state_dict(autoencoder.conv4.state_dict())
+        model.conv5.load_state_dict(autoencoder.conv5.state_dict())
+        model.conv6.load_state_dict(autoencoder.conv6.state_dict())
+    else:
+        optimizer = optim.Adam(
+            [
+                {"params": model.encoder.parameters(), "lr": 0.00001},
+                {"params": model.batch_norm0.parameters()},
+                {"params": model.batch_norm1.parameters()},
+                {"params": model.batch_norm2.parameters()},
+                {"params": model.batch_norm3.parameters()},
+                {"params": model.conv1.parameters()},
+                {"params": model.conv2.parameters()},
+                {"params": model.conv3.parameters()},
+                {"params": model.conv4.parameters()},
+                {"params": model.conv5.parameters()},
+                {"params": model.conv6.parameters()},
+                {"params": model.out.parameters()},
+                {"params": model.nl.parameters()},
+            ],
+            lr=model_hp_dict["learning_rate"],
+        )
+        # only the encoder present in the prediction step
+        model.encoder.load_state_dict(autoencoder.encoder.state_dict())
 
     if len(target_labels) == 1:
         criterion = target_criterion_dict[target_labels[0]]
@@ -225,7 +250,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
     return train_loader, valid_loader, unlabeled_loader
 
 
-def run(autoencoder_hp_dict, model_hp_dict):
+def run(autoencoder, autoencoder_hp_dict, model_hp_dict):
     autoencoder_loss_history = ModelCache(_prefix="autoencoder", _mode="train")
 
     train_loader, valid_loader, unlabeled_loader = load_data(
@@ -233,12 +258,13 @@ def run(autoencoder_hp_dict, model_hp_dict):
     )
 
     # train the autoencoder first
-    ae = trainer_ae(autoencoder_hp_dict, unlabeled_loader, autoencoder_loss_history)
+    ae = trainer_ae(autoencoder, autoencoder_hp_dict, unlabeled_loader, autoencoder_loss_history)
 
     # then append the training on CNN from block 1
     trainer_prediction(
         model_hp_dict, ae, train_loader, valid_loader, autoencoder_loss_history
     )
+
 
 
 def main(config_ae, config_model):
@@ -251,8 +277,15 @@ def main(config_ae, config_model):
     model_config.read(config_model)
     model_hp_dict = get_hyperparameters(model_config)
 
+    #initialize autoencoder
+    autoencoder = CnnAutoEncoder(
+                        input_size=1,
+                        hidden_size=model_hp_dict['hidden_size'],
+                        kernel_size=model_hp_dict['kernel_size'],
+                        pool_size=model_hp_dict['pool_size'])
+
     # Call functions to run models
-    run(autoencoder_hp_dict, model_hp_dict)
+    run(autoencoder, autoencoder_hp_dict, model_hp_dict)
 
 
 if __name__ == "__main__":
@@ -260,4 +293,6 @@ if __name__ == "__main__":
     # Read the ini file name from sys arg to avoid different people's different local set up
     # Use a shell script instead to run on your setup
 
-    main(sys.argv[1], sys.argv[2])
+    #main(sys.argv[1], sys.argv[2])
+    main("src/algorithm/autoencoder_input.in", "src/scripts/model_input.in")
+
