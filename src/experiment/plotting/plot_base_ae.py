@@ -7,20 +7,22 @@ from src.algorithm.autoencoder import AutoEncoder
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
-
+import re
 
 from src.data.unlabelled_data import UnlabelledDataset
 from src.legacy.TABaseline.code import Preprocessor as pp
 
 
+'''creates a plot to compare before and after basic autoencoder reconstruction of a signal'''
 
-def plot_signal(x, title="Signal before", fig="ae_signal"):
+
+def plot_signal(x, title="Signal MSE=0.4", fig="ae_signal"):
     """
     :param x: a dictionary of (key, numpy arrays) to plot
     :param fig: name of the figure
     :return:
     """
-    plt.title(fig)
+    plt.title(title)
 
     for key, val in x.items():
         plt.plot(val.data.cpu().numpy().reshape(constants.SHAPE_OF_ONE_DATA_POINT[1]), label=key)
@@ -39,7 +41,7 @@ def run(model, data):
     return out
 
 def read():
-    unlabeled_dataset = UnlabelledDataset(constants.T5_FAKE_TRAIN_LABELED_DATA, False)
+    unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
     out = pp.Preprocessor().forward(unlabeled_dataset[0][0])
     print(out.shape)
     return out
@@ -76,6 +78,15 @@ def main(argv):
     plot_var = {'original signal':x_original, 'autodencoder reconstruct': x_ae}
     plot_signal(plot_var)
 
+
+def extract_model_time(args):
+    """
+    :param args: argument, particularly looks for the YYYY_MM_DD_HH_MM_SS
+    :return: the substring in YYYY_MM_DD_HH_MM_SS format
+    """
+    path_list = args.model_path.split(os.sep)
+    return path_list[3]
+
+
 if __name__ == "__main__":
     main(['--model_path=../../log/2019_02_26_14_42_31_/model/autoencoder_epoch_12.pt'])
-

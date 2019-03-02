@@ -3,6 +3,8 @@ from pytz import timezone
 import os
 from src.utils.constants import SAVE_MODEL_PATH
 import torch
+from tensorboardX import SummaryWriter
+
 
 """Util functions to support saving models, including arugments, results, etc"""
 
@@ -22,10 +24,16 @@ class ModelCache:
         self.prefix = _prefix
         self.mode = _mode
         self.time_freeze = self.time_gen()
+        self.dir = os.path.join(SAVE_MODEL_PATH, self.time_freeze)
+
         if _suffix:
-            self.dir = os.path.join(SAVE_MODEL_PATH, self.time_freeze + _suffix)
+            self.writer = SummaryWriter(self.dir, filename_suffix=_suffix)
+
         else:
-            self.dir = os.path.join(SAVE_MODEL_PATH, self.time_freeze)
+            self.writer = SummaryWriter(self.dir)
+
+        # Tensorboard doesn't support customized file name, this supplies time freeze
+        # and optional _suffix for traceability
 
     def time_gen(self):
         fmt = "%Y_%m_%d_%H_%M_%S_"
@@ -47,12 +55,16 @@ class ModelCache:
             print("fp", fp)
         torch.save(model.state_dict(), fp)
 
+    def scalar_summary(self, tag, value, step):
+        """Log a scalar variable, used for tensorboard"""
+        self.writer.add_scalar(tag, value, step)
+
     def log(self, epoch, loss, verbose=False):
         """
-
+        Depreciated logging method that doesn't use tensorbard
         :param loss: list of errors
-
         :param epoch: number of epoch
+        :param verbose: to print the file/dir created, for debugging purposes
         :return: a log file
         """
         log_dir = os.path.join(self.dir, "history")

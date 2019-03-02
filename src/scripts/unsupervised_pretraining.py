@@ -3,9 +3,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-
-# from tensorboardX import SummaryWriter
-
 import src.legacy.TABaseline.code.baseline_models as models
 import src.legacy.TABaseline.code.scoring_function as scoreF
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
@@ -98,7 +95,13 @@ def trainer_ae(autoencoder_hp_dict, unlabeled_loader, loss_history):
             unlabeled_loader,
         )
         # log the errors everytime!
-        loss_history.log(epoch, train_mse_loss)
+
+
+        # loss_history.log(epoch, train_mse_loss)
+        info = {'loss': train_mse_loss }
+
+        for tag, value in info.items():
+            loss_history.scalar_summary(tag, value, epoch+1)
 
         if epoch % save_freq == 0:
             # Save model every save_freq epochs
@@ -129,7 +132,6 @@ def trainer_prediction(model_hp_dict, autoencoder,
     dropout = model_hp_dict["dropout"]
 
     # Changed from TA's legacy code file path
-    # constants.SAVE_MODEL_PATH + "/" # hack for TA's legacy code, not my fault
 
     path = loss_history.dir + "/"
 
@@ -141,6 +143,7 @@ def trainer_prediction(model_hp_dict, autoencoder,
     model = Conv1DBNLinear(
         1, out_size, hidden_size, kernel_size, pool_size, dropout, autoencoder=True
     )
+
     # model to gpu, create optimizer, criterion and train
     model.to(device)
     optimizer = optim.Adam(
@@ -165,7 +168,6 @@ def trainer_prediction(model_hp_dict, autoencoder,
 
     # only the encoder present in the prediction step
     model.encoder.load_state_dict(autoencoder.encoder.state_dict())
-    # model.decoder.load_state_dict(autoencoder.decoder.state_dict())
 
     if len(target_labels) == 1:
         criterion = target_criterion_dict[target_labels[0]]
@@ -196,9 +198,6 @@ def trainer_prediction(model_hp_dict, autoencoder,
     )
 
     print("save cnn model", loss_history.dir)
-    np.savetxt(os.path.join(loss_history.dir, "cnn_train.txt"), np.array(train[0]))
-    np.savetxt(os.path.join(loss_history.dir, "cnn_valid.txt"), np.array(valid[0]))
-
     print("CNN training Done")
 
 
@@ -211,7 +210,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
         constants.VALID_LABELED_DATASET_PATH, False, target=targets
     )
 
-    unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
+    unlabeled_dataset = UnlabelledDataset(constants.TRAIN_LABELED_DATASET_PATH, False)
 
     train_loader = DataLoader(
         train_dataset, model_hp_dict["batchsize"], shuffle=True, num_workers=1
@@ -240,9 +239,9 @@ def run(autoencoder_hp_dict, model_hp_dict):
     ae = trainer_ae(autoencoder_hp_dict, unlabeled_loader, autoencoder_loss_history)
 
     # then append the training on CNN from block 1
-    trainer_prediction(
-        model_hp_dict, ae, train_loader, valid_loader, autoencoder_loss_history
-    )
+    # trainer_prediction(
+    #     model_hp_dict, ae, train_loader, valid_loader, autoencoder_loss_history
+    # )
 
 
 def main(config_ae, config_model):
