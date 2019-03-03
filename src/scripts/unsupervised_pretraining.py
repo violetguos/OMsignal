@@ -3,10 +3,6 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from torch.utils.data.sampler import SubsetRandomSampler
-
-# from tensorboardX import SummaryWriter
-
 import src.legacy.TABaseline.code.baseline_models as models
 import src.legacy.TABaseline.code.scoring_function as scoreF
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
@@ -54,9 +50,9 @@ def train_autoencoder_per_epoch(model, optimizer, batch_size, loader):
     """
     Trains the autoeoncoder on one epoch, called by an outer loop that controls total number of epoches
     :param model: the autoencoder model created under src/algorithms
-    :param optimizer: pytorch optim
+    :param optimizer: pytorch optim or scheduler(optim)
     :param batch_size: size of one mini-batch
-    :param train_loader: the unlabelled data set loader, not the TRAIN_LABELLED_DATA
+    :param loader: the unlabelled data set loader, not the TRAIN_LABELLED_DATA
     :return: at the end of epoch, the MSE loss
     """
     model.train()
@@ -84,26 +80,36 @@ def trainer_ae(autoencoder, autoencoder_hp_dict, unlabeled_loader, loss_history)
     # Autoencoder training
     save_freq = autoencoder_hp_dict["nepoch"] // 5
     autoencoder = autoencoder.to(device)
-    AE_optimizer = optim.Adam(
+    ae_optimizer = optim.Adam(
         autoencoder.parameters(), lr=autoencoder_hp_dict["learning_rate"]
     )
+
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(ae_optimizer, mode='min', patience=1)
     loss_history.prefix = "autoencoder"
     loss_history.mode = "train"
     for epoch in range(autoencoder_hp_dict["nepoch"]):
         train_mse_loss = train_autoencoder_per_epoch(
             autoencoder,
-            AE_optimizer,
+            ae_optimizer,
             autoencoder_hp_dict["batchsize"],
             unlabeled_loader,
         )
         # log the errors everytime!
-        loss_history.log(epoch, train_mse_loss)
+
+
+        # loss_history.log(epoch, train_mse_loss)
+        info = {'loss': train_mse_loss }
+
+        for tag, value in info.items():
+            loss_history.scalar_summary(tag, value, epoch+1)
 
         if epoch % save_freq == 0:
             # Save model every save_freq epochs
             loss_history.save(autoencoder, epoch, verbose=False)
         print("epoch [{}], MSE_loss:{:.4f}".format(epoch, train_mse_loss))
 
+        # learning rate reducing scheduler
+        scheduler.step(train_mse_loss)
     print("Autoencoder training done")
 
     return autoencoder
@@ -126,7 +132,6 @@ def trainer_prediction(model_hp_dict, autoencoder,
     dropout = model_hp_dict["dropout"]
 
     # Changed from TA's legacy code file path
-    # constants.SAVE_MODEL_PATH + "/" # hack for TA's legacy code, not my fault
 
     path = loss_history.dir + "/"
 
@@ -138,6 +143,7 @@ def trainer_prediction(model_hp_dict, autoencoder,
     model = Conv1DBNLinear(
         1, out_size, hidden_size, kernel_size, pool_size, dropout, autoencoder=False
     )
+
     # model to gpu, create optimizer, criterion and train
     model.to(device)
     if isinstance(autoencoder, CnnAutoEncoder):
@@ -158,7 +164,6 @@ def trainer_prediction(model_hp_dict, autoencoder,
             ],
             lr=model_hp_dict["learning_rate"],
         )
-
         # Initialize the prediction weights with the encode weights
         model.conv1.load_state_dict(autoencoder.conv1.state_dict())
         model.conv2.load_state_dict(autoencoder.conv2.state_dict())
@@ -166,6 +171,7 @@ def trainer_prediction(model_hp_dict, autoencoder,
         model.conv4.load_state_dict(autoencoder.conv4.state_dict())
         model.conv5.load_state_dict(autoencoder.conv5.state_dict())
         model.conv6.load_state_dict(autoencoder.conv6.state_dict())
+
     else:
         optimizer = optim.Adam(
             [
@@ -185,8 +191,9 @@ def trainer_prediction(model_hp_dict, autoencoder,
             ],
             lr=model_hp_dict["learning_rate"],
         )
-        # only the encoder present in the prediction step
-        model.encoder.load_state_dict(autoencoder.encoder.state_dict())
+
+    # only the encoder present in the prediction step
+    model.encoder.load_state_dict(autoencoder.encoder.state_dict())
 
     if len(target_labels) == 1:
         criterion = target_criterion_dict[target_labels[0]]
@@ -217,9 +224,6 @@ def trainer_prediction(model_hp_dict, autoencoder,
     )
 
     print("save cnn model", loss_history.dir)
-    np.savetxt(os.path.join(loss_history.dir, "cnn_train.txt"), np.array(train[0]))
-    np.savetxt(os.path.join(loss_history.dir, "cnn_valid.txt"), np.array(valid[0]))
-
     print("CNN training Done")
 
 
