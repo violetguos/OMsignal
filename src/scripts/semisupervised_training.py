@@ -3,7 +3,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from torch.utils.data.sampler import SubsetRandomSampler
+from torch.utils.data.sampler import RandomSampler, SubsetRandomSampler, WeightedRandomSampler
 
 from tensorboardX import SummaryWriter
 
@@ -50,7 +50,7 @@ targets = constants.TARGETS
 
 # Hyperparameter ratio for unsupervised propagation
 LR_RATIO = 1
-BATCHSIZE_RATIO = 4
+BATCHSIZE_RATIO = 2
 
 # END global variables #
 
@@ -76,20 +76,23 @@ def train_unsupervised_per_epoch(model, optimizer, batch_size, unlabeled_loader)
     model.train()
 
     for batch_idx, (data, _) in enumerate(unlabeled_loader):
-        data = data.to(device)
-        # accommodates the TA's preprocessor dimension
-        data = data.view(batch_size, 1, 3750)
+        if batch_idx > 5:
+            break
+        else:
+            data = data.to(device)
+            # accommodates the TA's preprocessor dimension
+            data = data.view(batch_size, 1, 3750)
 
-        optimizer.zero_grad()
-        output = model(data, label=False)
+            optimizer.zero_grad()
+            output = model(data, label=False)
 
-        data = pp.Preprocessor().forward(data)
-        MSE_loss = nn.MSELoss()(output, data)
+            data = pp.Preprocessor().forward(data)
+            MSE_loss = nn.MSELoss()(output, data)
 
-        # ===================backward====================
-        optimizer.zero_grad()
-        MSE_loss.backward()
-        optimizer.step()
+            # ===================backward====================
+            optimizer.zero_grad()
+            MSE_loss.backward()
+            optimizer.step()
 
     return MSE_loss.item()
 
@@ -275,7 +278,7 @@ def load_data(model_hp_dict):
     unlabeled_loader = DataLoader(
         unlabeled_dataset,
         model_hp_dict["batchsize"]*BATCHSIZE_RATIO,
-        shuffle=False,
+        shuffle=True,
         num_workers=1,
         drop_last=True,
     )
@@ -312,6 +315,5 @@ if __name__ == "__main__":
     # Read the ini file name from sys arg to avoid different people's different local set up
     # Use a shell script instead to run on your setup
 
-    #main(sys.argv[1], sys.argv[2])
-    main("src/scripts/model_input.in")
-
+    main(sys.argv[1])
+    #main("src/scripts/model_input.in")
