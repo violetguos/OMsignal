@@ -230,13 +230,13 @@ def trainer_prediction(model_hp_dict, autoencoder,
 def load_data(model_hp_dict, autoencoder_hp_dict):
 
     train_dataset = ecgdataset.ECGDataset(
-        constants.TRAIN_LABELED_DATASET_PATH, True, target=targets
+        constants.T5_FAKE_TRAIN_LABELED_DATA, True, target=targets
     )
     valid_dataset = ecgdataset.ECGDataset(
-        constants.VALID_LABELED_DATASET_PATH, False, target=targets
+        constants.T5_FAKE_VALID_LABELED_DATA, False, target=targets
     )
 
-    unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
+    unlabeled_dataset = UnlabelledDataset(constants.T5_FAKE_TRAIN_LABELED_DATA, False)
 
     train_loader = DataLoader(
         train_dataset, model_hp_dict["batchsize"], shuffle=True, num_workers=1
