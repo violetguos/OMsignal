@@ -2,15 +2,13 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-from torch.utils.data.sampler import RandomSampler, SubsetRandomSampler, WeightedRandomSampler
+from torch.utils.data import DataLoader
 
 from tensorboardX import SummaryWriter
 
 import src.legacy.TABaseline.code.baseline_models as models
 import src.legacy.TABaseline.code.scoring_function as scoreF
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
-from src.algorithm.autoencoder import AutoEncoder, CnnAutoEncoder
 from src.legacy.TABaseline.code import Preprocessor as pp
 from src.data.unlabelled_data import UnlabelledDataset
 from src.legacy.TABaseline.code.baseline_multitask_main import (
@@ -49,7 +47,7 @@ target_criterion_dict = {
 targets = constants.TARGETS
 
 # Hyperparameter ratio for unsupervised propagation
-LR_RATIO = 1
+LR_RATIO = 0.1
 BATCHSIZE_RATIO = 2
 
 # END global variables #
@@ -76,7 +74,7 @@ def train_unsupervised_per_epoch(model, optimizer, batch_size, unlabeled_loader)
     model.train()
 
     for batch_idx, (data, _) in enumerate(unlabeled_loader):
-        if batch_idx > 5:
+        if batch_idx > 20:
             break
         else:
             data = data.to(device)

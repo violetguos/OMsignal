@@ -1,7 +1,7 @@
 [optimizer]
 learning_rate = 0.001
 momentum = 0.9
-nepoch = 200
+nepoch = 1400
 batch_size = 16
 
 [model]
@@ -13,10 +13,10 @@ kernel_size = 8
 pool_size = 4 
 
 [loss]
-weight1 = 1.6
+weight1 = 1
 weight2 = 1
-weight3 = 1.8
-weight4 = 16
+weight3 = 0.4
+weight4 = 0.4
 
 [path]
 model = models
