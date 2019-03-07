@@ -34,7 +34,7 @@ class UnlabelledDataset(torch.utils.data.Dataset):
         return self.number_of_data_points
 
     def __getitem__(self, idx):
-        """YVG NOTES: return the idx here for samplers to record index"""
+        """NOTES: return the idx here for samplers to record index"""
 
         """Get the items : ecg, target (userid by default)
 
