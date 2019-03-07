@@ -15,15 +15,17 @@ from src.scripts.unsupervised_pretraining import load_data
 from src.legacy.TABaseline.code import Preprocessor as pp
 
 
-
 def l_out_pool(l_in, kernel_size, stride=None, padding=0, dilation=1):
     """
     calculates the pooling output size according to the official pytorch doc
     """
     if stride == None:
         stride = kernel_size
-    l_out = int(np.floor((l_in + 2 * padding - dilation * (kernel_size - 1) - 1) / stride) + 1)
+    l_out = int(
+        np.floor((l_in + 2 * padding - dilation * (kernel_size - 1) - 1) / stride) + 1
+    )
     return l_out
+
 
 def l_out_conv(layer_num, kernel_size, pool=False):
     """
@@ -48,12 +50,8 @@ def l_out_conv(layer_num, kernel_size, pool=False):
     encoder_sizes = l_out_list
     l_out_list_copy.reverse()
     l_out_list_copy.append(constants.SHAPE_OF_ONE_DATA_POINT[1])
-    decoder_sizes = (
-        l_out_list_copy
-    )
+    decoder_sizes = l_out_list_copy
     return encoder_sizes, decoder_sizes
-
-
 
 
 class Ladder(torch.nn.Module):
@@ -65,8 +63,8 @@ class Ladder(torch.nn.Module):
         encoder_train_bn_scaling,
         noise_std,
         use_cuda,
-            encoder_layer_type_arr,
-            decoder_layer_type_arr
+        encoder_layer_type_arr,
+        decoder_layer_type_arr,
     ):
         super(Ladder, self).__init__()
         self.use_cuda = use_cuda
@@ -79,9 +77,11 @@ class Ladder(torch.nn.Module):
             encoder_train_bn_scaling,
             noise_std,
             use_cuda,
-            encoder_layer_type_arr
+            encoder_layer_type_arr,
         )
-        self.de = StackedDecoders(decoder_in, decoder_sizes, encoder_in, use_cuda, decoder_layer_type_arr)
+        self.de = StackedDecoders(
+            decoder_in, decoder_sizes, encoder_in, use_cuda, decoder_layer_type_arr
+        )
         self.bn_image = torch.nn.BatchNorm1d(encoder_in, affine=False)
 
     def forward_encoders_clean(self, data):
@@ -91,7 +91,9 @@ class Ladder(torch.nn.Module):
         return self.se.forward_noise(data)
 
     def forward_decoders(self, tilde_z_layers, encoder_output, tilde_z_bottom):
-        return self.de.forward(tilde_z_layers, encoder_output[0], tilde_z_bottom, encoder_output[1])
+        return self.de.forward(
+            tilde_z_layers, encoder_output[0], tilde_z_bottom, encoder_output[1]
+        )
 
     def get_encoders_tilde_z(self, reverse=True):
         return self.se.get_encoders_tilde_z(reverse)
@@ -138,7 +140,6 @@ def evaluate_performance(
             output = output.cpu()
             target = target.cpu()
 
-
         output = output.detach().numpy()
         target = target.data.numpy()
 
@@ -146,7 +147,6 @@ def evaluate_performance(
 
         correct += np.sum(target == preds)
         total += target.shape[0]
-
 
     print(
         "Epoch:",
@@ -164,6 +164,109 @@ def evaluate_performance(
         "Validation Accuracy:",
         correct / total,
     )
+
+
+def model_init(args):
+    kernel_size = 8
+    num_layer = 3
+    encoder_sizes, decoder_sizes = l_out_conv(num_layer, kernel_size, False)
+    print("encoder", encoder_sizes)
+    print("decoder", decoder_sizes)
+    unsupervised_costs_lambda = [float(x) for x in args.u_costs.split(",")]
+    encoder_activations = ["relu", "relu", "relu", "relu", "softmax"]
+    encoder_train_bn_scaling = [False, False, False, False, True]
+
+    encoder_layer_type_arr = ["cnn", "cnn", "cnn", "mlp"]
+    decoder_layer_type_arr = ["mlp", "cnn", "cnn", "cnn"]
+    ladder = Ladder(
+        encoder_sizes,
+        decoder_sizes,
+        encoder_activations,
+        encoder_train_bn_scaling,
+        args.noise_std,
+        args.cuda,
+        encoder_layer_type_arr,
+        decoder_layer_type_arr,
+    )
+    assert len(unsupervised_costs_lambda) == len(decoder_sizes) + 1
+    assert len(encoder_sizes) == len(decoder_sizes)
+    return ladder
+
+
+def encoder_forward(ladder, labelled_data, unlabelled_data):
+    # do a noisy pass for labelled data
+    output_noise_labelled = ladder.forward_encoders_noise(labelled_data)
+
+    # do a noisy pass for unlabelled_data
+    output_noise_unlabelled = ladder.forward_encoders_noise(unlabelled_data)
+    tilde_z_layers_unlabelled = ladder.get_encoders_tilde_z(reverse=True)
+
+    # do a clean pass for unlabelled data
+    output_clean_unlabelled = ladder.forward_encoders_clean(unlabelled_data)
+    z_pre_layers_unlabelled = ladder.get_encoders_z_pre(reverse=True)
+    z_layers_unlabelled = ladder.get_encoders_z(reverse=True)
+
+    tilde_z_bottom_unlabelled = ladder.get_encoder_tilde_z_bottom()
+
+    res = {"output_noise_labelled": output_noise_labelled,
+           "output_noise_unlabelled": output_noise_unlabelled,
+           "tilde_z_layers_unlabelled": tilde_z_layers_unlabelled,
+           "output_clean_unlabelled": output_clean_unlabelled,
+           "z_pre_layers_unlabelled": z_pre_layers_unlabelled,
+           "z_layers_unlabelled": z_layers_unlabelled,
+           "tilde_z_bottom_unlabelled":tilde_z_bottom_unlabelled}
+
+    return res
+
+
+def supervised_cost_scale(
+    scale, loss_supervised, output_noise_labelled, labelled_target
+):
+    cost_supervised = loss_supervised.forward(output_noise_labelled[0], labelled_target)
+
+    cost_supervised *= scale
+    return cost_supervised
+
+
+def unsupervised_cost_scale(
+    unsupervised_costs_lambda,
+    z_layers_unlabelled,
+    bn_hat_z_layers_unlabelled,
+    loss_unsupervised,
+):
+    cost_unsupervised = 0.0
+    for cost_lambda, z, bn_hat_z in zip(
+        unsupervised_costs_lambda, z_layers_unlabelled, bn_hat_z_layers_unlabelled
+    ):
+        c = cost_lambda * loss_unsupervised.forward(bn_hat_z, z)
+        cost_unsupervised += c
+
+    return cost_unsupervised
+
+
+def get_batch_data(train_loader, device, unlabelled_data, batch_size):
+    labelled_data, labelled_target = next(iter(train_loader))
+    labelled_target = labelled_target[3]
+    unlabelled_data = unlabelled_data.to(device)
+    labelled_target = labelled_target.to(device=device, dtype=torch.int64)
+    labelled_data = labelled_data.to(device)
+    labelled_target = labelled_target.squeeze()
+    # print("labelled_target", labelled_target.shape)
+
+    labelled_data = labelled_data.view(batch_size, 1, 3750)
+    unlabelled_data = unlabelled_data.view(batch_size, 1, 3750)
+
+    labelled_data = pp.Preprocessor().forward(labelled_data)
+    unlabelled_data = pp.Preprocessor().forward(unlabelled_data)
+
+    # TODO: add a switch for MLP vs CNN
+    labelled_data = labelled_data.view(batch_size, 1, 3750)
+    unlabelled_data = unlabelled_data.view(batch_size, 1, 3750)
+
+    # labelled_data = labelled_data.view(batch_size, 3750)
+    # unlabelled_data = unlabelled_data.view(batch_size, 3750)
+
+    return labelled_data, labelled_target, unlabelled_data
 
 
 def main():
@@ -198,7 +301,6 @@ def main():
     print("LR DECAY EPOCH:", decay_epoch)
     print("CUDA:", args.cuda)
     print("=====================\n")
-
     np.random.seed(seed)
     torch.manual_seed(seed)
     if args.cuda:
@@ -208,59 +310,29 @@ def main():
     # TODO: change param reading!
     temp_param = {"batchsize": 16}
     batch_size = 16
-    kernel_size = 8
-    num_layer = 3
 
     train_loader, validation_loader, unlabelled_loader = load_data(
         temp_param, temp_param
     )
 
     # Configure the Ladder
-    starter_lr = 0.02
     # TODO: variable kernel size
     # TODO: variable channel size
+    # TODO: change param reading!
 
-    encoder_sizes, decoder_sizes = l_out_conv(num_layer, kernel_size, False)
-    print("encoder", encoder_sizes)
-    print("decoder", decoder_sizes)
+    # keep this
     unsupervised_costs_lambda = [float(x) for x in args.u_costs.split(",")]
-    encoder_activations = [
-        "relu",
-        "relu",
-        "relu",
-        "relu",
-        "softmax",
-    ]
-    encoder_train_bn_scaling = [
-        False,
-        False,
-        False,
-        False,
-        True,
-    ]
 
-    encoder_layer_type_arr = ["cnn", "cnn", "cnn", "mlp"]
-    decoder_layer_type_arr = ['mlp', 'cnn', 'cnn', 'cnn']
-    ladder = Ladder(
-        encoder_sizes,
-        decoder_sizes,
-        encoder_activations,
-        encoder_train_bn_scaling,
-        noise_std,
-        args.cuda,
-        encoder_layer_type_arr,
-        decoder_layer_type_arr
-
-    )
-    optimizer = Adam(ladder.parameters(), lr=starter_lr)
-    loss_supervised = torch.nn.CrossEntropyLoss()
-    loss_unsupervised = torch.nn.MSELoss()
-
+    # declare the model
+    ladder = model_init(args)
     if args.cuda:
         ladder.cuda()
 
-    assert len(unsupervised_costs_lambda) == len(decoder_sizes) + 1
-    assert len(encoder_sizes) == len(decoder_sizes)
+    # configure the optimizer
+    starter_lr = 0.02
+    optimizer = Adam(ladder.parameters(), lr=starter_lr)
+    loss_supervised = torch.nn.CrossEntropyLoss()
+    loss_unsupervised = torch.nn.MSELoss()
 
     print("")
     print("========NETWORK=======")
@@ -276,6 +348,8 @@ def main():
     print("TRAINING\n")
 
     # TODO: Add learning rate scheduler
+
+    # TODO: make this less repritive, set global
     use_gpu = torch.cuda.is_available()
 
     device = torch.device("cuda:0" if use_gpu else "cpu")
@@ -288,82 +362,52 @@ def main():
         ladder.train()
 
         for batch_idx, (unlabelled_data, _) in enumerate(unlabelled_loader):
-
-            labelled_data, labelled_target = next(iter(train_loader))
-            labelled_target = labelled_target[3]
-            unlabelled_data = unlabelled_data.to(device)
-            labelled_target = labelled_target.to(device=device, dtype=torch.int64)
-            labelled_data = labelled_data.to(device)
-            labelled_target = labelled_target.squeeze()
-            # print("labelled_target", labelled_target.shape)
-
-            labelled_data = labelled_data.view(batch_size, 1, 3750)
-            unlabelled_data = unlabelled_data.view(batch_size, 1, 3750)
-
-            labelled_data = pp.Preprocessor().forward(labelled_data)
-            unlabelled_data = pp.Preprocessor().forward(unlabelled_data)
-
-            # TODO: add a switch for MLP vs CNN
-            labelled_data = labelled_data.view(batch_size, 1, 3750)
-            unlabelled_data = unlabelled_data.view(batch_size, 1, 3750)
-
-            # labelled_data = labelled_data.view(batch_size, 3750)
-            # unlabelled_data = unlabelled_data.view(batch_size, 3750)
+            labelled_data, labelled_target, unlabelled_data = get_batch_data(
+                train_loader, device, unlabelled_data, batch_size
+            )
 
             optimizer.zero_grad()
 
-            # do a noisy pass for labelled data
-            output_noise_labelled = ladder.forward_encoders_noise(labelled_data)
+            # forward pass in both noisy and clean encoders
+            encoder_res = encoder_forward(ladder, labelled_data, unlabelled_data)
 
-            # do a noisy pass for unlabelled_data
-            output_noise_unlabelled = ladder.forward_encoders_noise(unlabelled_data)
-            tilde_z_layers_unlabelled = ladder.get_encoders_tilde_z(reverse=True)
-
-            # do a clean pass for unlabelled data
-            output_clean_unlabelled = ladder.forward_encoders_clean(unlabelled_data)
-            z_pre_layers_unlabelled = ladder.get_encoders_z_pre(reverse=True)
-            z_layers_unlabelled = ladder.get_encoders_z(reverse=True)
-
-            tilde_z_bottom_unlabelled = ladder.get_encoder_tilde_z_bottom()
-            # print("tilde_z_bottom_unlabelled", tilde_z_bottom_unlabelled.shape)
             # pass through decoders
             hat_z_layers_unlabelled = ladder.forward_decoders(
-                tilde_z_layers_unlabelled,
-                output_noise_unlabelled,
-                tilde_z_bottom_unlabelled,
+                encoder_res["tilde_z_layers_unlabelled"],
+                encoder_res["output_noise_unlabelled"],
+                encoder_res["tilde_z_bottom_unlabelled"],
             )
 
-            z_pre_layers_unlabelled.append(unlabelled_data)
-            z_layers_unlabelled.append(unlabelled_data)
+            encoder_res["z_pre_layers_unlabelled"].append(unlabelled_data)
+            encoder_res["z_layers_unlabelled"].append(unlabelled_data)
 
             # TODO: Verify if you have to batch-normalize the bottom-most layer also
             # batch normalize using mean, var of z_pre
             # inputs are type list
             bn_hat_z_layers_unlabelled = ladder.decoder_bn_hat_z_layers(
-                hat_z_layers_unlabelled, z_pre_layers_unlabelled
+                hat_z_layers_unlabelled, encoder_res["z_pre_layers_unlabelled"]
             )
+            assert len(encoder_res["z_layers_unlabelled"]) == len(bn_hat_z_layers_unlabelled)
+
             # calculate costs
-            cost_supervised = loss_supervised.forward(
-                output_noise_labelled[0], labelled_target
+            # TODO hyperparam scale
+            scale = 10
+            cost_supervised = supervised_cost_scale(
+                scale, loss_supervised, encoder_res["output_noise_labelled"], labelled_target
             )
 
-            # TODO: weighted weights for classification tasks
-            cost_supervised *= 10
-            cost_unsupervised = 0.0
-            assert len(z_layers_unlabelled) == len(bn_hat_z_layers_unlabelled)
-            for cost_lambda, z, bn_hat_z in zip(
+            # unsupercised cost and scaling each layer
+            cost_unsupervised = unsupervised_cost_scale(
                 unsupervised_costs_lambda,
-                z_layers_unlabelled,
+                encoder_res["z_layers_unlabelled"],
                 bn_hat_z_layers_unlabelled,
-            ):
-                c = cost_lambda * loss_unsupervised.forward(bn_hat_z, z)
-                cost_unsupervised += c
+                loss_unsupervised,
+            )
 
             # backprop
             cost = cost_supervised + cost_unsupervised
             cost.backward()
             optimizer.step()
-
 
             agg_cost += cost.data
             agg_supervised_cost += cost_supervised.data
