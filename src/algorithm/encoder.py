@@ -72,8 +72,7 @@ class Encoder(torch.nn.Module):
             # where 32 is number of possible user IDs
             # we want dim=1 to sum to 1
             self.activation = torch.nn.Softmax(dim=1)
-        elif activation_type == "no":
-            self.activation_type = None
+
         else:
             raise ValueError("invalid Acitvation type")
 
@@ -102,9 +101,7 @@ class Encoder(torch.nn.Module):
                 h = torch.unsqueeze(h, dim=1)
 
             z_pre = self.conv(h)
-        elif self.net_type == 'pool':
-            h = torch.unsqueeze(h, dim=1)
-            z_pre, indices = self.pool(h)
+
         # Store z_pre, z to be used in calculation of reconstruction cost
         self.buffer_z_pre = z_pre.detach().clone()
         z_pre = z_pre.squeeze(1)
@@ -117,7 +114,7 @@ class Encoder(torch.nn.Module):
         else:
             # To acoomendate the pOOLING, no activation
             h = z_gb
-        return h, indices
+        return h
 
     def forward_noise(self, tilde_h):
         indices = -1 # indicates not a polling layer, no indices of pooling to track
@@ -130,9 +127,7 @@ class Encoder(torch.nn.Module):
                 tilde_h = torch.unsqueeze(tilde_h, dim=1)
 
             z_pre = self.conv(tilde_h)
-        elif self.net_type == 'pool':
-            tilde_h = torch.unsqueeze(tilde_h, dim=1)
-            z_pre, indices = self.pool(tilde_h)
+
 
         # accomendate the 3 dim <-> 2 dim transformation for Convolutional
         z_pre = torch.squeeze(z_pre)
@@ -156,7 +151,7 @@ class Encoder(torch.nn.Module):
         else:
             h = z
 
-        return h, indices
+        return h
 
 
 class StackedEncoders(torch.nn.Module):
@@ -197,12 +192,10 @@ class StackedEncoders(torch.nn.Module):
 
     def forward_clean(self, x):
         h = x
-        idx_arr = []
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
-            h, idx = encoder.forward_clean(h)
-            idx_arr.append(idx)
-        return h, idx_arr
+            h = encoder.forward_clean(h)
+        return h
 
     def forward_noise(self, x):
         noise = np.random.normal(loc=0.0, scale=self.noise_level, size=x.size())
@@ -218,16 +211,14 @@ class StackedEncoders(torch.nn.Module):
         h = x + noise
 
         self.buffer_tilde_z_bottom = h.clone()
-        # pass through encoders
-        idx_arr = []
+
 
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
 
-            h, idx = encoder.forward_noise(h)
-            idx_arr.append(idx)
+            h = encoder.forward_noise(h)
 
-        return h, idx_arr
+        return h
 
     def get_encoders_tilde_z(self, reverse=True):
         tilde_z_layers = []

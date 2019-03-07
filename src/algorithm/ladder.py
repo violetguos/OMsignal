@@ -13,6 +13,7 @@ import src.utils.constants as constants
 
 from src.scripts.unsupervised_pretraining import load_data
 from src.legacy.TABaseline.code import Preprocessor as pp
+import matplotlib.pyplot as plt
 
 
 def l_out_pool(l_in, kernel_size, stride=None, padding=0, dilation=1):
@@ -53,6 +54,17 @@ def l_out_conv(layer_num, kernel_size, pool=False):
     decoder_sizes = l_out_list_copy
     return encoder_sizes, decoder_sizes
 
+def layer_plot(val):
+    plt.plot(val.data.cpu().numpy())
+    plt.show()
+    plt.close()
+    plt.clf()
+
+
+# TODO: serparate this into script vs alsgotihtm
+# TODO: save the model!!!
+# TODO: run tensorboard loacally!!!!
+# TODO: plot each layer
 
 class Ladder(torch.nn.Module):
     def __init__(
@@ -85,15 +97,21 @@ class Ladder(torch.nn.Module):
         self.bn_image = torch.nn.BatchNorm1d(encoder_in, affine=False)
 
     def forward_encoders_clean(self, data):
-        return self.se.forward_clean(data)
+        layer_out = self.se.forward_clean(data)
+
+        # layer_plot(data[0])
+        return layer_out
 
     def forward_encoders_noise(self, data):
         return self.se.forward_noise(data)
 
     def forward_decoders(self, tilde_z_layers, encoder_output, tilde_z_bottom):
-        return self.de.forward(
-            tilde_z_layers, encoder_output[0], tilde_z_bottom, encoder_output[1]
+        layer_out = self.de.forward(
+            tilde_z_layers, encoder_output, tilde_z_bottom
         )
+        # layer_plot(layer_out)
+        return layer_out
+
 
     def get_encoders_tilde_z(self, reverse=True):
         return self.se.get_encoders_tilde_z(reverse)
@@ -133,8 +151,7 @@ def evaluate_performance(
         target = target.to(device=device)
         target = target.squeeze()
 
-        # extra _ from the forward function was intended to be the indices of MaxUnpool
-        output, _ = ladder.forward_encoders_clean(data)
+        output = ladder.forward_encoders_clean(data)
         # TODO: don't think we need to convert back to CPU, just need to detach
         if args.cuda:
             output = output.cpu()
@@ -168,16 +185,16 @@ def evaluate_performance(
 
 def model_init(args):
     kernel_size = 8
-    num_layer = 3
+    num_layer = 1
     encoder_sizes, decoder_sizes = l_out_conv(num_layer, kernel_size, False)
     print("encoder", encoder_sizes)
     print("decoder", decoder_sizes)
     unsupervised_costs_lambda = [float(x) for x in args.u_costs.split(",")]
-    encoder_activations = ["relu", "relu", "relu", "relu", "softmax"]
-    encoder_train_bn_scaling = [False, False, False, False, True]
+    encoder_activations = ["relu", "softmax"]
+    encoder_train_bn_scaling = [False, True]
 
-    encoder_layer_type_arr = ["cnn", "cnn", "cnn", "mlp"]
-    decoder_layer_type_arr = ["mlp", "cnn", "cnn", "cnn"]
+    encoder_layer_type_arr = ["cnn", "mlp"]
+    decoder_layer_type_arr = ["mlp", "cnn"]
     ladder = Ladder(
         encoder_sizes,
         decoder_sizes,
@@ -222,7 +239,7 @@ def encoder_forward(ladder, labelled_data, unlabelled_data):
 def supervised_cost_scale(
     scale, loss_supervised, output_noise_labelled, labelled_target
 ):
-    cost_supervised = loss_supervised.forward(output_noise_labelled[0], labelled_target)
+    cost_supervised = loss_supervised.forward(output_noise_labelled, labelled_target)
 
     cost_supervised *= scale
     return cost_supervised
@@ -274,11 +291,11 @@ def main():
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
     parser.add_argument("--batch", type=int, default=100)
     parser.add_argument("--epochs", type=int, default=20)
-    parser.add_argument("--noise_std", type=float, default=0.2)
+    parser.add_argument("--noise_std", type=float, default=0.02)
     parser.add_argument("--data_dir", type=str, default="data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--u_costs", type=str, default="0.1, 1,  1, 1, 10"
+        "--u_costs", type=str, default="1, 5, 10"
     )  # , 0.1, 0.1, 10., 1000.
     parser.add_argument("--cuda", type=bool, default=True)
     parser.add_argument("--decay_epoch", type=int, default=15)
@@ -330,7 +347,9 @@ def main():
 
     # configure the optimizer
     starter_lr = 0.02
+
     optimizer = Adam(ladder.parameters(), lr=starter_lr)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 5, eta_min=1e-4)
     loss_supervised = torch.nn.CrossEntropyLoss()
     loss_unsupervised = torch.nn.MSELoss()
 

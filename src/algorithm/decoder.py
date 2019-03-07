@@ -57,11 +57,9 @@ class Decoder(torch.nn.Module):
         if self.d_out is not None:
             # TODO: use variable sized kernel size
             self.deconv = torch.nn.ConvTranspose1d(1, 1, 8)
-            self.unpool = torch.nn.MaxUnpool1d(3)
             if self.net_type == 'cnn':
                 self.V = self.deconv
-            elif self.net_type == 'pool':
-                self.V = self.unpool
+
             else:
                 self.V = torch.nn.Linear(d_in, d_out, bias=False)
                 self.V.weight.data = torch.randn(self.V.weight.data.size()) / np.sqrt(d_in)
@@ -107,7 +105,7 @@ class Decoder(torch.nn.Module):
 
         return hat_z_l
 
-    def forward(self, tilde_z_l, u_l, idx):
+    def forward(self, tilde_z_l, u_l):
         # hat_z_l will be used for calculating decoder costs
         hat_z_l = self.g(tilde_z_l, u_l)
         # store hat_z_l in buffer for cost calculation
@@ -118,11 +116,8 @@ class Decoder(torch.nn.Module):
             if len(hat_z_l.shape) == 2:
                 hat_z_l = torch.unsqueeze(hat_z_l, dim=1)
             # do not change this to elif, not related to the one above
-            if type(idx) != int:
-                # it was a pooling layer, need index to do unpool
-                t = self.V.forward(hat_z_l, idx)
-            else:
-                t = self.V.forward(hat_z_l)
+
+            t = self.V.forward(hat_z_l)
 
             t = torch.squeeze(t, dim=1)
             u_l_below = self.bn_normalize(t)
@@ -145,7 +140,6 @@ class StackedDecoders(torch.nn.Module):
         for i in range(n_decoders):
             if i == 0:
                 d_input = d_in
-                print("i = 0 din", d_in)
 
             else:
                 d_input = d_decoders[i - 1]
@@ -158,7 +152,7 @@ class StackedDecoders(torch.nn.Module):
 
         self.bottom_decoder = Decoder(image_size, None, use_cuda, 'cnn')
 
-    def forward(self, tilde_z_layers, u_top, tilde_z_bottom, idx_arr):
+    def forward(self, tilde_z_layers, u_top, tilde_z_bottom):
         # Note that tilde_z_layers should be in reversed order of encoders
         hat_z = []
         u = self.bn_u_top(u_top)
@@ -167,9 +161,9 @@ class StackedDecoders(torch.nn.Module):
             decoder = getattr(self.decoders, d_ref)
             tilde_z = tilde_z_layers[i]
 
-            u = decoder.forward(tilde_z, u, idx_arr[i])
+            u = decoder.forward(tilde_z, u)
             hat_z.append(decoder.buffer_hat_z_l)
-        self.bottom_decoder.forward(tilde_z_bottom, u, -1)
+        self.bottom_decoder.forward(tilde_z_bottom, u)
         hat_z_bottom = self.bottom_decoder.buffer_hat_z_l.clone()
         hat_z.append(hat_z_bottom)
         return hat_z
