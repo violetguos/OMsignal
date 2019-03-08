@@ -21,7 +21,7 @@ from src.legacy.TABaseline.code.baseline_models import Conv1DBNLinear
 from src.legacy.TABaseline.code.baseline_multitask_main import get_hyperparameters
 
 from src.legacy.meanteacher.pytorch.mean_teacher.data import TwoStreamBatchSampler
-from src.legacy.meanteacher.pytorch.main import save_checkpoint, accuracy, update_ema_variables
+from src.legacy.meanteacher.pytorch.main import save_checkpoint, update_ema_variables
 from src.legacy.meanteacher.pytorch.mean_teacher.run_context import RunContext
 from src.legacy.meanteacher.pytorch.mean_teacher.losses import softmax_kl_loss, softmax_mse_loss, symmetric_mse_loss
 from src.legacy.meanteacher.pytorch.mean_teacher.utils import AverageMeterSet, AverageMeter
@@ -338,6 +338,21 @@ def validate(eval_loader, model, log, global_step, epoch, print_freq = 10):
     })
 
     return meters['top1'].avg
+
+def accuracy(output, target, topk=(1,)):
+    """Computes the precision@k for the specified values of k"""
+    maxk = max(topk)
+    labeled_minibatch_size = max(target.ne(NO_LABEL).sum(), 1e-8)
+
+    _, pred = output.topk(maxk, 1, True, True)
+    pred = pred.t()
+    correct = pred.eq(target.view(1, -1).expand_as(pred))
+
+    res = []
+    for k in topk:
+        correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
+        res.append(correct_k.mul_(100.0 / float(labeled_minibatch_size)))
+    return res
 
 #########################################################################################
 #########################################################################################

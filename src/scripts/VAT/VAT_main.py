@@ -99,13 +99,14 @@ def get_hyperparameters(config):
         [weight1, weight2, weight3, weight4]
     return hyperparam
 
-def train_VAT(model, sample, target, loss = nn.CrossEntropyLoss(), entropy=True, alpha = 1):
+def train_VAT(model, sample, target, optimizer, loss = nn.CrossEntropyLoss(), entropy=True, alpha = 1):
 
     model.train()
-    labeled_sample = torch.Tensor(np.array([sample[i].numpy() for i,ex in enumerate(sample) if target[i].item() != 0])).to(device)
-    unlabeled_sample = torch.Tensor(np.array([sample[i].numpy() for i,ex in enumerate(sample) if target[i].item() == 0])).to(device)
-    true_targets = torch.Tensor(np.array([target[i].item() for i,ex in enumerate(sample) if target[i].item() != 0])).to(device)
+    labeled_sample = torch.tensor(np.array([sample[i].cpu().numpy() for i,ex in enumerate(sample) if target[i].item() != 0], dtype=np.float32), requires_grad = True).to(device)
+    unlabeled_sample = torch.tensor(np.array([sample[i].cpu().numpy() for i,ex in enumerate(sample) if target[i].item() == 0], dtype=np.float32), requires_grad = True).to(device)
+    true_targets = torch.tensor(np.array([target[i].cpu().item() for i,ex in enumerate(sample) if target[i].item() != 0], dtype=np.float32), requires_grad = True).to(device)
 
+    optimizer.zero_grad()
     VATLoss_ = VATLoss()
     vat_loss_ = VATLoss_(model, unlabeled_sample) / len(unlabeled_sample)
 
@@ -245,9 +246,9 @@ if __name__ == "__main__":
 
         scheduler.step(epoch)
         for idx, ((sample , _), target) in enumerate(train_loader):
+            sample, target = sample.to(device), target.to(device)
             LOG.info('Epoch: [{0}][{1}/{2}]\t -------------------'.format(epoch, idx, len(train_loader)))
-            optimizer.zero_grad()
-            total_loss, CE_loss, vat_loss, entropy_loss = train_VAT(model, sample, target)
+            total_loss, CE_loss, vat_loss, entropy_loss = train_VAT(model, sample, target, optimizer)
             total_loss.backward()
             optimizer.step()
 
