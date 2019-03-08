@@ -35,7 +35,7 @@ def l_out_conv(layer_num, kernel_size, pool=False):
     l_out_list = []
     l_in = constants.SHAPE_OF_ONE_DATA_POINT[1]
     for i in range(layer_num):
-        l_out = l_out_conv1d(l_in, kernel_size)
+        l_out = l_out_conv1d(l_in, kernel_size, stride=2)
         l_out_list.append(l_out)
 
         if pool:
@@ -54,8 +54,22 @@ def l_out_conv(layer_num, kernel_size, pool=False):
     decoder_sizes = l_out_list_copy
     return encoder_sizes, decoder_sizes
 
-def layer_plot(val):
-    plt.plot(val.data.cpu().numpy())
+
+def layer_plot(x, title="ladder", fig="ladder"):
+    """
+    :param x: a dictionary of (key, numpy arrays) to plot
+    :param fig: name of the figure
+    :return:
+    """
+    plt.title(title)
+
+    for key, val in x.items():
+        plt.plot(val.data.cpu().numpy().reshape(constants.SHAPE_OF_ONE_DATA_POINT[1]), label=key)
+
+
+    plt.legend(loc='best')
+
+    plt.savefig(fig + ".png")
     plt.show()
     plt.close()
     plt.clf()
@@ -77,6 +91,7 @@ class Ladder(torch.nn.Module):
         use_cuda,
         encoder_layer_type_arr,
         decoder_layer_type_arr,
+        kernel_size
     ):
         super(Ladder, self).__init__()
         self.use_cuda = use_cuda
@@ -90,16 +105,21 @@ class Ladder(torch.nn.Module):
             noise_std,
             use_cuda,
             encoder_layer_type_arr,
+            kernel_size
         )
         self.de = StackedDecoders(
-            decoder_in, decoder_sizes, encoder_in, use_cuda, decoder_layer_type_arr
+            decoder_in, decoder_sizes, encoder_in, use_cuda, decoder_layer_type_arr,
+            kernel_size
         )
         self.bn_image = torch.nn.BatchNorm1d(encoder_in, affine=False)
+        self.kernel_size = kernel_size
 
     def forward_encoders_clean(self, data):
         layer_out = self.se.forward_clean(data)
 
-        # layer_plot(data[0])
+        # print("data shape in forward encoder", data.shape)
+        # for i in range(len(layer_out)):
+        #     print("layer out in forward enc {}".format(i), layer_out[i].shape)
         return layer_out
 
     def forward_encoders_noise(self, data):
@@ -109,7 +129,11 @@ class Ladder(torch.nn.Module):
         layer_out = self.de.forward(
             tilde_z_layers, encoder_output, tilde_z_bottom
         )
-        # layer_plot(layer_out)
+        # not zero
+        # print("encoder_output", encoder_output[0])
+        # print("*********************")
+        # for i in range(len(layer_out)):
+        #     print("layer out in forward dec {}".format(i), layer_out[i].shape)
         return layer_out
 
 
@@ -152,7 +176,8 @@ def evaluate_performance(
         target = target.squeeze()
 
         output = ladder.forward_encoders_clean(data)
-        # TODO: don't think we need to convert back to CPU, just need to detach
+        # print("output" , output)
+        # print("target", target)
         if args.cuda:
             output = output.cpu()
             target = target.cpu()
@@ -161,9 +186,10 @@ def evaluate_performance(
         target = target.data.numpy()
 
         preds = np.argmax(output, axis=1)
-
+        # print("preds", preds)
         correct += np.sum(target == preds)
         total += target.shape[0]
+
 
     print(
         "Epoch:",
@@ -183,18 +209,83 @@ def evaluate_performance(
     )
 
 
+def encoder_net_func(num_layer, net_type='cnn'):
+    """
+    automatically creates the array of layer net type, either cnn or mlp
+    :param num_layer: number of layers except the layer softmax layer
+    :param net_type: cnn or mlp
+    :return: list of net layer types
+    """
+    ec_funct = []
+    for i in range(num_layer):
+        ec_funct.append(net_type)
+    ec_funct.append('mlp')
+
+    dc_funct = copy.deepcopy(ec_funct)
+    dc_funct.reverse()
+
+    return ec_funct, dc_funct
+
+
+
+# def encoder_net_func(num_layer, net_type='cnn'):
+#     """
+#     automatically creates the array of layer net type, either cnn or mlp
+#     :param num_layer: number of layers except the layer softmax layer
+#     :param net_type: cnn or mlp
+#     :return: list of net layer types
+#     """
+#     ec_funct = []
+#     for i in range(num_layer):
+#         ec_funct.append(net_type)
+#     ec_funct.append('mlp')
+#
+#     dc_funct =[]
+#     for i in range(num_layer):
+#         dc_funct.append('mlp')
+#     dc_funct.append('mlp')
+#
+#
+#     return ec_funct, dc_funct
+
+
+def encoder_train_bn(num_layer):
+    """
+    a boolean of whether to apply batch norm on data
+    taken from the paper as in
+    :param num_layer: number of layer
+    :return: list of bools, true for last layer
+    """
+    ec_bn = []
+    for i in range(num_layer):
+        ec_bn.append(False)
+    ec_bn.append(True)
+    return ec_bn
+
+def encoder_activation_func(num_layer):
+    """
+    Generates a list of activation functions
+    :param num_layer: numher of layers
+    :return: array of activation functions
+    """
+    ec_funct = []
+    for i in range(num_layer):
+        ec_funct.append('relu')
+    ec_funct.append('softmax')
+
+    return ec_funct
+
 def model_init(args):
     kernel_size = 8
-    num_layer = 1
+    num_layer = 2
     encoder_sizes, decoder_sizes = l_out_conv(num_layer, kernel_size, False)
     print("encoder", encoder_sizes)
     print("decoder", decoder_sizes)
     unsupervised_costs_lambda = [float(x) for x in args.u_costs.split(",")]
-    encoder_activations = ["relu", "softmax"]
-    encoder_train_bn_scaling = [False, True]
+    encoder_activations = encoder_activation_func(num_layer)
+    encoder_train_bn_scaling = encoder_train_bn(num_layer)
 
-    encoder_layer_type_arr = ["cnn", "mlp"]
-    decoder_layer_type_arr = ["mlp", "cnn"]
+    encoder_layer_type_arr, decoder_layer_type_arr = encoder_net_func(num_layer)
     ladder = Ladder(
         encoder_sizes,
         decoder_sizes,
@@ -204,6 +295,7 @@ def model_init(args):
         args.cuda,
         encoder_layer_type_arr,
         decoder_layer_type_arr,
+        kernel_size
     )
     assert len(unsupervised_costs_lambda) == len(decoder_sizes) + 1
     assert len(encoder_sizes) == len(decoder_sizes)
@@ -220,6 +312,7 @@ def encoder_forward(ladder, labelled_data, unlabelled_data):
 
     # do a clean pass for unlabelled data
     output_clean_unlabelled = ladder.forward_encoders_clean(unlabelled_data)
+
     z_pre_layers_unlabelled = ladder.get_encoders_z_pre(reverse=True)
     z_layers_unlabelled = ladder.get_encoders_z(reverse=True)
 
@@ -290,22 +383,20 @@ def main():
     # command line arguments
     parser = argparse.ArgumentParser(description="Parser for Ladder network")
     parser.add_argument("--batch", type=int, default=100)
-    parser.add_argument("--epochs", type=int, default=20)
-    parser.add_argument("--noise_std", type=float, default=0.02)
+    parser.add_argument("--epochs", type=int, default=10)
+    parser.add_argument("--noise_std", type=float, default=0.05)
     parser.add_argument("--data_dir", type=str, default="data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--u_costs", type=str, default="1, 5, 10"
+        "--u_costs", type=str, default="1., 1.,1. ,1."
     )  # , 0.1, 0.1, 10., 1000.
     parser.add_argument("--cuda", type=bool, default=True)
-    parser.add_argument("--decay_epoch", type=int, default=15)
     args = parser.parse_args()
 
     batch_size = args.batch
     epochs = args.epochs
     noise_std = args.noise_std
     seed = args.seed
-    decay_epoch = args.decay_epoch
     if args.cuda and not torch.cuda.is_available():
         print("WARNING: torch.cuda not available, using CPU.\n")
         args.cuda = False
@@ -315,7 +406,6 @@ def main():
     print("EPOCHS:", epochs)
     print("RANDOM SEED:", args.seed)
     print("NOISE STD:", noise_std)
-    print("LR DECAY EPOCH:", decay_epoch)
     print("CUDA:", args.cuda)
     print("=====================\n")
     np.random.seed(seed)
@@ -346,10 +436,10 @@ def main():
         ladder.cuda()
 
     # configure the optimizer
-    starter_lr = 0.02
+    starter_lr = 0.1
 
     optimizer = Adam(ladder.parameters(), lr=starter_lr)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 5, eta_min=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 3, eta_min=1e-5)
     loss_supervised = torch.nn.CrossEntropyLoss()
     loss_unsupervised = torch.nn.MSELoss()
 
@@ -366,9 +456,6 @@ def main():
     print("=====================")
     print("TRAINING\n")
 
-    # TODO: Add learning rate scheduler
-
-    # TODO: make this less repritive, set global
     use_gpu = torch.cuda.is_available()
 
     device = torch.device("cuda:0" if use_gpu else "cpu")
@@ -396,7 +483,12 @@ def main():
                 encoder_res["output_noise_unlabelled"],
                 encoder_res["tilde_z_bottom_unlabelled"],
             )
+            # plot_dict = {"hat_z_layers_unlabelled": hat_z_layers_unlabelled[-1][0],
+            #              "unlabelled_data": unlabelled_data[0]}
 
+            # BUG: TODO: decoder output always zero!
+            # print(hat_z_layers_unlabelled)
+            # layer_plot(plot_dict, title="ladder {}".format(e), fig="ladder {}".format(e))
             encoder_res["z_pre_layers_unlabelled"].append(unlabelled_data)
             encoder_res["z_layers_unlabelled"].append(unlabelled_data)
 
@@ -426,12 +518,26 @@ def main():
             # backprop
             cost = cost_supervised + cost_unsupervised
             cost.backward()
-            optimizer.step()
-
+            scheduler.step(cost)
+            # optimizer.step()
             agg_cost += cost.data
             agg_supervised_cost += cost_supervised.data
             agg_unsupervised_cost += cost_unsupervised.data
             num_batches += 1
+
+
+        # plot at the end of every epooch
+        plot_dict = {"hat_z_layers_unlabelled": hat_z_layers_unlabelled[-1][0],
+        "unlabelled_data": unlabelled_data[0]}
+
+        print("**********hat z************")
+        print(torch.max(hat_z_layers_unlabelled[-1][0]))
+
+        print("**********data************")
+        print(torch.max(unlabelled_data[0]))
+        # BUG: TODO: decoder output always zero!
+        # print(hat_z_layers_unlabelled)
+        layer_plot(plot_dict, title="ladder {}".format(e), fig="ladder_{}".format(e))
 
         # Evaluation
         ladder.eval()
@@ -449,6 +555,7 @@ def main():
         ladder.train()
     print("=====================\n")
     print("Done :)")
+
 
 
 if __name__ == "__main__":

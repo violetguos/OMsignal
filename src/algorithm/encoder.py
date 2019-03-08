@@ -2,11 +2,12 @@ import numpy as np
 import torch
 from torch.nn.parameter import Parameter
 from torch.autograd import Variable
+import torch.nn as nn
 
 
 def l_out_conv1d(l_in, kernel_size, stride=1, padding=0, dilation=1):
-    l_out = np.floor((l_in + (2 * padding) - dilation * (kernel_size - 1) - 1) / stride)
-    l_out = l_out + 1
+    l_out = ((l_in + (2 * padding) - dilation * (kernel_size - 1) - 1) / stride)+1
+    print(l_out)
     return int(l_out)
 
 
@@ -20,6 +21,7 @@ class Encoder(torch.nn.Module):
         noise_level,
         use_cuda,
         net_type,
+            kernel_size
     ):
         super(Encoder, self).__init__()
         self.d_in = d_in
@@ -28,7 +30,7 @@ class Encoder(torch.nn.Module):
         self.train_bn_scaling = train_bn_scaling
         self.noise_level = noise_level
         self.use_cuda = use_cuda
-
+        self.kernel_size=kernel_size
         # added to commendate different types of layer architecture
         self.net_type = net_type
 
@@ -38,7 +40,10 @@ class Encoder(torch.nn.Module):
         # TODO: varaible for kernel size
 
         self.linear = torch.nn.Linear(d_in, d_out, bias=False)
-        self.conv = torch.nn.Conv1d(1, 1, 8)
+        self.conv = torch.nn.Conv1d(1, 1, self.kernel_size, stride=2)
+
+
+
         self.pool = torch.nn.MaxPool1d(3, return_indices=True)
         self.linear.weight.data = torch.randn(self.linear.weight.data.size()) / np.sqrt(
             d_in
@@ -66,7 +71,7 @@ class Encoder(torch.nn.Module):
 
         # Activation
         if activation_type == "relu":
-            self.activation = torch.nn.ReLU()
+            self.activation = torch.nn.LeakyReLU(negative_slope=0.05)
         elif activation_type == "softmax":
             # choose dim = 1 becuase the z before actication is shape (batch_size, 32)
             # where 32 is number of possible user IDs
@@ -93,14 +98,14 @@ class Encoder(torch.nn.Module):
         return t
 
     def forward_clean(self, h):
-        indices = -1 # indicates not a polling layer, no indices of pooling to track
         if self.net_type == "mlp":
             z_pre = self.linear(h)
         elif self.net_type == "cnn":
             if len(h.shape) == 2:
                 h = torch.unsqueeze(h, dim=1)
-
             z_pre = self.conv(h)
+
+        # print("forward enc shape in class encoder  z_pre", z_pre.shape)
 
         # Store z_pre, z to be used in calculation of reconstruction cost
         self.buffer_z_pre = z_pre.detach().clone()
@@ -109,15 +114,23 @@ class Encoder(torch.nn.Module):
         self.buffer_z = z.detach().clone()
         z_gb = self.bn_gamma_beta(z)
 
-        if self.activation_type != None:
-            h = self.activation(z_gb)
-        else:
-            # To acoomendate the pOOLING, no activation
-            h = z_gb
+
+        h = self.activation(z_gb)
+        # if self.activation_type=='softmax':
+        #     print("self net type", self.net_type)
+        #     print("z_gb", z_gb.shape)
+        #     print("h", h.shape)
+
+
         return h
 
+    def l_out_conv1D(self, l_in, kernel_size, stride=1, padding=0, dilation=1):
+        l_out = (l_in + (2 * padding) - dilation *
+                 (kernel_size - 1) - 1) / stride
+        l_out = l_out + 1
+        return int(l_out)
+
     def forward_noise(self, tilde_h):
-        indices = -1 # indicates not a polling layer, no indices of pooling to track
 
         # z_pre will be used in the decoder cost
         if self.net_type == "mlp":
@@ -130,7 +143,8 @@ class Encoder(torch.nn.Module):
 
 
         # accomendate the 3 dim <-> 2 dim transformation for Convolutional
-        z_pre = torch.squeeze(z_pre)
+        z_pre = torch.squeeze(z_pre, dim=1)
+
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(
@@ -157,6 +171,7 @@ class Encoder(torch.nn.Module):
 class StackedEncoders(torch.nn.Module):
     def __init__(
         self, d_in, d_encoders, activation_types, train_batch_norms, noise_std, use_cuda, net_type_arr
+        ,kernel_size
     ):
         super(StackedEncoders, self).__init__()
         self.buffer_tilde_z_bottom = None
@@ -165,7 +180,7 @@ class StackedEncoders(torch.nn.Module):
         self.noise_level = noise_std
         self.use_cuda = use_cuda
         n_encoders = len(d_encoders)
-
+        self.kernel_size = kernel_size
         self.net_type_arr = net_type_arr
         for i in range(n_encoders):
             if i == 0:
@@ -186,6 +201,7 @@ class StackedEncoders(torch.nn.Module):
                 noise_std,
                 use_cuda,
                 self.net_type_arr[i],
+                kernel_size
             )
             self.encoders_ref.append(encoder_ref)
             self.encoders.add_module(encoder_ref, encoder)
@@ -215,7 +231,6 @@ class StackedEncoders(torch.nn.Module):
 
         for e_ref in self.encoders_ref:
             encoder = getattr(self.encoders, e_ref)
-
             h = encoder.forward_noise(h)
 
         return h

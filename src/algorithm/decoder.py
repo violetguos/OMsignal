@@ -18,45 +18,74 @@ def inv_l_out(l_in, kernel_size, stride=1, padding=0, dilation=1, output_padding
     return l_out
 
 
+
+
 class Decoder(torch.nn.Module):
-    def __init__(self, d_in, d_out, use_cuda, net_type):
+    def __init__(self, d_in, d_out, use_cuda, net_type, kernel_size):
         super(Decoder, self).__init__()
 
         self.d_in = d_in
         self.d_out = d_out
         self.use_cuda = use_cuda
         self.net_type = net_type
+        self.kernel_size = kernel_size
         # the following are trainable parameters used in the g( ) function defined in the paper
         # use as is
+        # if self.use_cuda:
+        #     self.a1 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #     self.a2 = Parameter(1. * torch.ones(1, d_in).cuda())
+        #     self.a3 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #     self.a4 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #     self.a5 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #
+        #     self.a6 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #     self.a7 = Parameter(1. * torch.ones(1, d_in).cuda())
+        #     self.a8 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #     self.a9 = Parameter(0. * torch.ones(1, d_in).cuda())
+        #     self.a10 = Parameter(0. * torch.ones(1, d_in).cuda())
+        # else:
+        #     self.a1 = Parameter(0. * torch.ones(1, d_in))
+        #     self.a2 = Parameter(1. * torch.ones(1, d_in))
+        #     self.a3 = Parameter(0. * torch.ones(1, d_in))
+        #     self.a4 = Parameter(0. * torch.ones(1, d_in))
+        #     self.a5 = Parameter(0. * torch.ones(1, d_in))
+        #
+        #     self.a6 = Parameter(0. * torch.ones(1, d_in))
+        #     self.a7 = Parameter(1. * torch.ones(1, d_in))
+        #     self.a8 = Parameter(0. * torch.ones(1, d_in))
+        #     self.a9 = Parameter(0. * torch.ones(1, d_in))
+        #     self.a10 = Parameter(0. * torch.ones(1, d_in))
+
         if self.use_cuda:
-            self.a1 = Parameter(0. * torch.ones(1, d_in).cuda())
-            self.a2 = Parameter(1. * torch.ones(1, d_in).cuda())
-            self.a3 = Parameter(0. * torch.ones(1, d_in).cuda())
-            self.a4 = Parameter(0. * torch.ones(1, d_in).cuda())
-            self.a5 = Parameter(0. * torch.ones(1, d_in).cuda())
+            # np.random.normal(0, 0.2) from bengio paper
+            self.a1 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a2 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a3 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a4 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a5 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
 
-            self.a6 = Parameter(0. * torch.ones(1, d_in).cuda())
-            self.a7 = Parameter(1. * torch.ones(1, d_in).cuda())
-            self.a8 = Parameter(0. * torch.ones(1, d_in).cuda())
-            self.a9 = Parameter(0. * torch.ones(1, d_in).cuda())
-            self.a10 = Parameter(0. * torch.ones(1, d_in).cuda())
+            self.a6 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a7 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a8 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a9 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
+            self.a10 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in).cuda())
         else:
-            self.a1 = Parameter(0. * torch.ones(1, d_in))
-            self.a2 = Parameter(1. * torch.ones(1, d_in))
-            self.a3 = Parameter(0. * torch.ones(1, d_in))
-            self.a4 = Parameter(0. * torch.ones(1, d_in))
-            self.a5 = Parameter(0. * torch.ones(1, d_in))
+            self.a1 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a2 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a3 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a4 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a5 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
 
-            self.a6 = Parameter(0. * torch.ones(1, d_in))
-            self.a7 = Parameter(1. * torch.ones(1, d_in))
-            self.a8 = Parameter(0. * torch.ones(1, d_in))
-            self.a9 = Parameter(0. * torch.ones(1, d_in))
-            self.a10 = Parameter(0. * torch.ones(1, d_in))
+            self.a6 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a7 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a8 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a9 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
+            self.a10 = Parameter(np.random.normal(0, 0.2) * torch.ones(1, d_in))
 
 
         if self.d_out is not None:
             # TODO: use variable sized kernel size
-            self.deconv = torch.nn.ConvTranspose1d(1, 1, 8)
+            self.deconv = torch.nn.ConvTranspose1d(1, 1, self.kernel_size, stride=2)
             if self.net_type == 'cnn':
                 self.V = self.deconv
 
@@ -68,7 +97,8 @@ class Decoder(torch.nn.Module):
             self.bn_normalize = torch.nn.BatchNorm1d(d_out, affine=False)
 
         # buffer for hat_z_l to be used for cost calculation
-        self.buffer_hat_z_l = None
+        else:
+            self.buffer_hat_z_l = None
 
     def g(self, tilde_z_l, u_l):
         if self.use_cuda:
@@ -92,6 +122,8 @@ class Decoder(torch.nn.Module):
 
         u_l = torch.squeeze(u_l)
 
+        # b_a1 =
+
         mu_l = torch.mul(b_a1, torch.sigmoid(torch.mul(b_a2, u_l) + b_a3)) + \
                torch.mul(b_a4, u_l) + \
                b_a5
@@ -100,15 +132,36 @@ class Decoder(torch.nn.Module):
               torch.mul(b_a9, u_l) + \
               b_a10
 
-
+        if len(tilde_z_l.shape) == 3:
+            tilde_z_l = torch.squeeze(tilde_z_l, dim=1)
+        # print("g   mu_l", mu_l.shape)
         hat_z_l = torch.mul(tilde_z_l - mu_l, v_l) + mu_l
 
+        # print("invext shape", hat_z_l.shape)
+        hat_z_l = torch.unsqueeze(hat_z_l, dim=1)
+        # print()
+        # print()
+        # print("////////////////////")
+        # print("in the g function")
+        # print("v_l", v_l)
+        # print()
         return hat_z_l
+
+    def l_out_conv1D(self, l_in, kernel_size, stride=1, padding=0, dilation=1):
+        l_out = (l_in + (2 * padding) - dilation *
+                 (kernel_size - 1) - 1) / stride
+        l_out = l_out + 1
+        return int(l_out)
 
     def forward(self, tilde_z_l, u_l):
         # hat_z_l will be used for calculating decoder costs
+        # print("tilde_z_l", tilde_z_l)
         hat_z_l = self.g(tilde_z_l, u_l)
         # store hat_z_l in buffer for cost calculation
+        #
+        # print()
+        # print("*********************")
+        # print("hat_z_l", hat_z_l)
         self.buffer_hat_z_l = hat_z_l
 
         if self.d_out is not None:
@@ -118,18 +171,27 @@ class Decoder(torch.nn.Module):
             # do not change this to elif, not related to the one above
 
             t = self.V.forward(hat_z_l)
-
+            # print()
+            # print("****************")
+            # print("t", t.shape)
             t = torch.squeeze(t, dim=1)
             u_l_below = self.bn_normalize(t)
-            u_l_below = torch.unsqueeze(u_l_below, dim=1)
 
+
+            u_l_below = torch.unsqueeze(u_l_below, dim=1)
+            # print()
+            # print("*****************")
+            # print("decoder forward u_l_below",u_l_below.shape )
             return u_l_below
         else:
+            # print("bottom decoder")
+            # print('din', self.d_in)
+            # t = self.V.forward(hat_z_l)
             return None
 
 
 class StackedDecoders(torch.nn.Module):
-    def __init__(self, d_in, d_decoders, image_size, use_cuda, net_type_arr):
+    def __init__(self, d_in, d_decoders, image_size, use_cuda, net_type_arr, kernel_size):
         super(StackedDecoders, self).__init__()
         self.bn_u_top = torch.nn.BatchNorm1d(d_in, affine=False)
         self.decoders_ref = []
@@ -137,6 +199,7 @@ class StackedDecoders(torch.nn.Module):
         self.use_cuda = use_cuda
         n_decoders = len(d_decoders)
         self.net_type_arr = net_type_arr
+        self.kernel_size = kernel_size
         for i in range(n_decoders):
             if i == 0:
                 d_input = d_in
@@ -146,26 +209,39 @@ class StackedDecoders(torch.nn.Module):
             d_output = d_decoders[i]
             decoder_ref = "decoder_" + str(i)
             print(decoder_ref, d_input, d_output)
-            decoder = Decoder(d_input, d_output, use_cuda, self.net_type_arr[i])
+            decoder = Decoder(d_input, d_output, use_cuda, self.net_type_arr[i], self.kernel_size)
             self.decoders_ref.append(decoder_ref)
             self.decoders.add_module(decoder_ref, decoder)
 
-        self.bottom_decoder = Decoder(image_size, None, use_cuda, 'cnn')
+        self.bottom_decoder = Decoder(image_size, None, use_cuda, 'mlp', 0)
 
     def forward(self, tilde_z_layers, u_top, tilde_z_bottom):
         # Note that tilde_z_layers should be in reversed order of encoders
         hat_z = []
+        # print("u_top", u_top)
         u = self.bn_u_top(u_top)
+        # u= u_top
         for i in range(len(self.decoders_ref)):
             d_ref = self.decoders_ref[i]
             decoder = getattr(self.decoders, d_ref)
             tilde_z = tilde_z_layers[i]
-
+            # print("tilde_z", tilde_z)
+            # print()
+            # print("************")
+            # print("u layer {}".format(i))
+            # u became 0 after 1 layer
+            # print(u)
             u = decoder.forward(tilde_z, u)
+            # print("decoder stack forward", u.shape)
             hat_z.append(decoder.buffer_hat_z_l)
+        # print("tilde_z_bottom", tilde_z_bottom.shape)
         self.bottom_decoder.forward(tilde_z_bottom, u)
         hat_z_bottom = self.bottom_decoder.buffer_hat_z_l.clone()
+        # print("hat_z_bottem", hat_z_bottom)
+
         hat_z.append(hat_z_bottom)
+        # print("hat_z", hat_z)
+
         return hat_z
 
     def bn_hat_z_layers(self, hat_z_layers, z_pre_layers):
