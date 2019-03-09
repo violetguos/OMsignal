@@ -121,6 +121,7 @@ def training_loop(
 
     loss_history.prefix = "CNNencoder"
     loss_history.mode = "train"
+    # Index starts at 1 for reporting purposes
     for epoch in range(1, hyperparameters_dict['nepoch'] + 1):
 
         train_mse_loss = train_unsupervised_per_epoch(
@@ -130,7 +131,7 @@ def training_loop(
             unlabeled_loader,
         )
         # log the errors everytime!
-        loss_history.log(epoch, train_mse_loss)
+        writer.add_scalar('Training/ReconstructLoss', train_mse_loss, epoch)
 
         train_loss, train_acc = train_model(
             model, optimizer_prediction, criterion, train_loader,
@@ -203,7 +204,6 @@ def trainer_prediction(model_hp_dict,
 
     path = loss_history.dir + "/"
 
-    loss_history.prefix = "cnn_model_encoder_part_epoch"
     model_hp_dict["tbpath"] = os.path.join(path, "tensorboard")
     chkptg_freq = model_hp_dict["nepoch"] // 10
 
@@ -250,8 +250,6 @@ def trainer_prediction(model_hp_dict,
     )
 
     print("save cnn model", loss_history.dir)
-    np.savetxt(os.path.join(loss_history.dir, "cnn_train.txt"), np.array(train[0]))
-    np.savetxt(os.path.join(loss_history.dir, "cnn_valid.txt"), np.array(valid[0]))
 
     print("CNN training Done")
 
