@@ -40,8 +40,16 @@ class Encoder(torch.nn.Module):
         # TODO: varaible for kernel size
 
         self.linear = torch.nn.Linear(d_in, d_out, bias=False)
-        self.conv = torch.nn.Conv1d(1, 1, self.kernel_size, stride=2)
 
+        self.conv = nn.Sequential(
+                                torch.nn.Conv1d(1, 16, self.kernel_size, stride=2),
+                                  torch.nn.BatchNorm1d(16),
+                                  nn.LeakyReLU(negative_slope=0.05),
+                                  torch.nn.Conv1d(16, 32, self.kernel_size, stride=2),
+                                  torch.nn.BatchNorm1d(32),
+                                  nn.LeakyReLU(negative_slope=0.05)
+
+        )
 
 
         self.pool = torch.nn.MaxPool1d(3, return_indices=True)
@@ -144,7 +152,7 @@ class Encoder(torch.nn.Module):
 
         # accomendate the 3 dim <-> 2 dim transformation for Convolutional
         z_pre = torch.squeeze(z_pre, dim=1)
-
+        print("z_pre", z_pre.shape)
         z_pre_norm = self.bn_normalize(z_pre)
         # Add noise
         noise = np.random.normal(
@@ -182,6 +190,10 @@ class StackedEncoders(torch.nn.Module):
         n_encoders = len(d_encoders)
         self.kernel_size = kernel_size
         self.net_type_arr = net_type_arr
+
+        # used to normalize the batch data
+        self.data_batch_norm = torch.nn.BatchNorm1d(1)
+
         for i in range(n_encoders):
             if i == 0:
                 d_input = d_in

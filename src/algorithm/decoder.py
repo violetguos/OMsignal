@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from torch.nn.parameter import Parameter
 from torch.autograd import Variable
+import torch.nn as nn
 
 
 def inv_l_out(l_in, kernel_size, stride=1, padding=0, dilation=1, output_padding=0):
@@ -85,7 +86,13 @@ class Decoder(torch.nn.Module):
 
         if self.d_out is not None:
             # TODO: use variable sized kernel size
-            self.deconv = torch.nn.ConvTranspose1d(1, 1, self.kernel_size, stride=2)
+            self.deconv = nn.Sequential(torch.nn.ConvTranspose1d(16, 32, self.kernel_size, stride=2),
+                                        nn.LeakyReLU(negative_slope=0.05),
+                                        torch.nn.ConvTranspose1d(16, 1, self.kernel_size, stride=2),
+                                        nn.LeakyReLU(negative_slope=0.05),
+
+                                        torch.nn.ConvTranspose1d(16, 1, self.kernel_size, stride=2),
+                                        )
             if self.net_type == 'cnn':
                 self.V = self.deconv
 

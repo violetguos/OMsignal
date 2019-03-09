@@ -36,6 +36,8 @@ def l_out_conv(layer_num, kernel_size, pool=False):
     l_in = constants.SHAPE_OF_ONE_DATA_POINT[1]
     for i in range(layer_num):
         l_out = l_out_conv1d(l_in, kernel_size, stride=2)
+        l_out = l_out_conv1d(l_out, kernel_size, stride=2)
+
         l_out_list.append(l_out)
 
         if pool:
@@ -277,7 +279,7 @@ def encoder_activation_func(num_layer):
 
 def model_init(args):
     kernel_size = 8
-    num_layer = 2
+    num_layer = 1
     encoder_sizes, decoder_sizes = l_out_conv(num_layer, kernel_size, False)
     print("encoder", encoder_sizes)
     print("decoder", decoder_sizes)
@@ -388,7 +390,7 @@ def main():
     parser.add_argument("--data_dir", type=str, default="data")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
-        "--u_costs", type=str, default="1., 1.,1. ,1."
+        "--u_costs", type=str, default="1., 1., 1."
     )  # , 0.1, 0.1, 10., 1000.
     parser.add_argument("--cuda", type=bool, default=True)
     args = parser.parse_args()
