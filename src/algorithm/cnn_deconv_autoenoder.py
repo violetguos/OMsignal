@@ -58,10 +58,12 @@ class CnnDeconvAutoEncoder(nn.Module):
         l_out = self.l_out_maxpool1d(l_out, pool_size)
         final_encoder_l_out = l_out
 
-
-
+        # print("final_encoder_l_out", final_encoder_l_out)
+        # print("hidden_size_buf_block3", hidden_size_buf_block3)
+        # test_shape_final = final_encoder_l_out * hidden_size_buf_block3
+        # print("predef shape",test_shape_final )
         self.prediction_layer = nn.Linear(
-                final_encoder_l_out * hidden_size_buf_block3 * hidden_size_buf_block3,
+                final_encoder_l_out * hidden_size_buf_block3 ,
                 constants.NUM_IDS
         )
 
@@ -201,13 +203,17 @@ class CnnDeconvAutoEncoder(nn.Module):
 
     def forward(self, x, prediction=False):
 
-
         if prediction:
             x, idx1, idx2, idx3 = self.encoder(x)
-            x = self.decoder(x,  idx1, idx2, idx3)
-            x = self.prediction_layer(x.view(x.size(0), -1))
+            # test = x.view(x.size(0), -1)
+            # print("pred test shape", test.shape)
+            y = self.prediction_layer(x.view(x.size(0), -1))
+            x = self.decoder(x, idx1, idx2, idx3)
+            return x, y
+
+
         else:
             x,  idx1, idx2, idx3 = self.encoder(x)
             x = self.decoder(x,  idx1, idx2, idx3)
+            return x
 
-        return x
