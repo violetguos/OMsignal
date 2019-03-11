@@ -190,10 +190,10 @@ class CnnDeconvAutoEncoder(nn.Module):
         return x
 
     def preprocess_norm(self, x, batch_size):
-        x = x.view(batch_size, constants.SHAPE_OF_ONE_DATA_POINT[0], constants.SHAPE_OF_ONE_DATA_POINT[1])
+        x = x.view(len(x), constants.SHAPE_OF_ONE_DATA_POINT[0], constants.SHAPE_OF_ONE_DATA_POINT[1])
 
         x = self.preprocess(x)
-        x = x.view(batch_size, 1, constants.SHAPE_OF_ONE_DATA_POINT[1])
+        x = x.view(len(x), 1, constants.SHAPE_OF_ONE_DATA_POINT[1])
         # print("x = self.batch_norm0(x)",  x.size())
 
         x = self.batch_norm0(x)
@@ -208,7 +208,7 @@ class CnnDeconvAutoEncoder(nn.Module):
             # test = x.view(x.size(0), -1)
             # print("pred test shape", test.shape)
             y = self.prediction_layer(x.view(x.size(0), -1))
-            x = self.decoder(x, idx1, idx2, idx3)
+            # x = self.decoder(x, idx1, idx2, idx3)
             return x, y
 
 

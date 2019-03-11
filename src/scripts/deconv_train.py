@@ -4,12 +4,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
+from torch.autograd import Variable
 
 from tensorboardX import SummaryWriter
 from src.data.unlabelled_data import UnlabelledDataset
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
 from src.utils import constants
 import matplotlib.pyplot as plt
+from src.utils.cache import ModelCache
+
+
 
 
 # BEGIN Global variables #
@@ -27,6 +31,16 @@ targets = constants.TARGETS
 
 
 # END global variables #
+
+def noise(noise_level, data):
+    noise = np.random.normal(
+        loc=0.0, scale=noise_level, size=data.size()
+    )
+    if use_gpu:
+        noise = Variable(torch.cuda.FloatTensor(noise))
+    else:
+        noise = Variable(torch.FloatTensor(noise))
+    return noise
 
 
 def layer_plot(x, title="ladder", fig="ladder"):
@@ -51,20 +65,22 @@ def layer_plot(x, title="ladder", fig="ladder"):
     plt.clf()
 
 
-def train_ae_mse_per_epoch(model, criterion, loader, plot=False):
+def train_ae_mse_per_epoch(model, criterion, loader, batch_size, plot=False):
     model.train()
     for batch_idx, (data, _) in enumerate(loader):
         data = data.to(device)
-        data = model.preprocess_norm(data, batch_size=16)
+        data = model.preprocess_norm(data, batch_size=batch_size)
         output_recon = model(data)
         mse_loss = criterion(output_recon, data)
     if plot:
+        data = data.to(device)
+        data = model.preprocess_norm(data, batch_size=batch_size)
         return mse_loss, data, output_recon
     return mse_loss
 
 
 
-def train_prediction_per_epoch(model, criterion,loader):
+def train_prediction_per_epoch(model, criterion,loader, batch_size):
     model.train()
     for batch_idx, (data, target) in enumerate(loader):
         data = data.to(device)
@@ -74,51 +90,90 @@ def train_prediction_per_epoch(model, criterion,loader):
         target = target.to(device)
         target = target.squeeze()
 
-        data = model.preprocess_norm(data, batch_size=16)
+        data = model.preprocess_norm(data, batch_size=batch_size)
+        data += noise(0.05, data)
         _, output_pred = model(data, prediction=True)
         ce_loss = criterion(output_pred, target)
-    return ce_loss
+    train_acc = classification_accuracy(output_pred, target)
+    return ce_loss, train_acc
 
 
-def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch):
+def classification_accuracy(output, target):
+    correct = 0.0
+    total = 0.0
+    if use_gpu:
+        output = output.cpu()
+        target = target.cpu()
+    output = output.detach().numpy()
+    target = target.data.numpy()
+    # print("output", output.shape)
+    preds = np.argmax(output, axis=1)
+    # print("preds", preds)
+    correct += np.sum(target == preds)
+    total += target.shape[0]
+    accuracy = correct/total
+    return accuracy
+
+
+
+def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch, batch_size):
+    cache = ModelCache()
     model = CnnDeconvAutoEncoder(1, 8)
     model.to(device)
 
     optimizer = optim.Adam(model.parameters(), lr=2e-3)
     criterion_recon = nn.MSELoss()
     criterion_pred = nn.CrossEntropyLoss()
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau()
+
 
     # TODO: add num epoch
+    model_save_freq = 19
     for i in range(num_epoch):
         optimizer.zero_grad()
 
         print("Training epoch {}".format(i))
         mse_loss, batch_data, batch_out = train_ae_mse_per_epoch(
-            model, criterion_recon, unlabelled_loader, plot=True
+            model, criterion_recon, unlabelled_loader, batch_size, plot=True
         )
-        ce_loss = train_prediction_per_epoch(model, criterion_pred, train_loader)
 
-        loss = mse_loss + 10* ce_loss
+        ce_loss, train_acc = train_prediction_per_epoch(model, criterion_pred, train_loader, batch_size)
+        # train_prediction_per_epoch(model, criterion_pred, train_loader, batch_size)
+
+        loss = 10 * mse_loss + ce_loss
         loss.backward()
         optimizer.step()
+        # scheduler.step(loss)
 
-        epoch_plot = {"data": batch_data[0], "out": batch_out[0]}
-        # layer_plot(epoch_plot, fig="real_data" + str(i))
+
         print("Evaluating epoch{}".format(i))
-        evaluate_performance(model, valid_loader, i)
+        print("Epoch {} \t train accuracy {}".format(i+1, train_acc))
+        print("Epoch {} \t train MSE loss {}".format(i+1, mse_loss))
+
+        valid_acc, valid_loss = evaluate_performance(model, valid_loader, i, batch_size)
+        cache.scalar_summary('Train_acc', train_acc, i)
+        cache.scalar_summary('Train_cross_entropy', ce_loss, i)
+        cache.scalar_summary('Valid_acc', valid_acc, i)
+        cache.scalar_summary('Valid_cross_entropy', valid_loss, i)
+        cache.scalar_summary('train_mse_loss', mse_loss, i)
+        if i % model_save_freq:
+            cache.save(model, i)
+            epoch_plot = {"data": batch_data[0], "out": batch_out[0]}
+            layer_plot(epoch_plot, fig="real_data" + str(i))
+    cache.save(model, num_epoch)
 
 
 def load_data(batchsize):
     print("Load data")
-    # TODO: read model dict, hardcode for now
     train_dataset = ecgdataset.ECGDataset(
-        constants.T5_FAKE_VALID_LABELED_DATA, True, target=targets
-    )
-    valid_dataset = ecgdataset.ECGDataset(
-        constants.T5_FAKE_VALID_LABELED_DATA, False, target=targets
+        constants.T5_FAKE_VALID_LABELED_DATA, use_transform=True, target=targets
     )
 
-    unlabeled_dataset = UnlabelledDataset(constants.T5_FAKE_VALID_LABELED_DATA, False)
+    valid_dataset = ecgdataset.ECGDataset(
+        constants.T5_FAKE_VALID_LABELED_DATA, use_transform=False, target=targets
+    )
+
+    unlabeled_dataset = UnlabelledDataset(constants.T5_FAKE_VALID_LABELED_DATA, use_transform=False)
 
     train_loader = DataLoader(train_dataset, batchsize, shuffle=True, num_workers=1)
     valid_loader = DataLoader(valid_dataset, batchsize, shuffle=False, num_workers=1)
@@ -130,7 +185,7 @@ def load_data(batchsize):
     return train_loader, valid_loader, unlabeled_loader
 
 
-def evaluate_performance(model, valid_loader, e):
+def evaluate_performance(model, valid_loader, e, batch_size):
     correct = 0.0
     total = 0.0
     model.eval()
@@ -143,34 +198,36 @@ def evaluate_performance(model, valid_loader, e):
         target = target[3] #only read the IDs
         target = target.to(device=device)
         target = target.squeeze()
-        data = model.preprocess_norm(data, batch_size=16)
-        # print("eval data", data.shape)
+        data = model.preprocess_norm(data, batch_size=batch_size)
 
         _, output = model.forward(data, prediction=True)
-        # print("target", target)
         if use_gpu:
             output = output.cpu()
             target = target.cpu()
 
-        output = output.detach().numpy()
+        output = output.detach()
+        valid_loss = nn.CrossEntropyLoss()(output, target)
+
+        output = output.numpy()
         target = target.data.numpy()
 
         preds = np.argmax(output, axis=1)
-        # print("preds", preds)
         correct += np.sum(target == preds)
         total += target.shape[0]
 
-    print("Epoch:", e + 1, "\t", "Validation Accuracy:", correct / total)
+    valid_acc = correct / total
+    print("Epoch:", e + 1, "\t", "Validation Accuracy:", valid_acc, "Validation loss: ", valid_loss.item() )
+    return valid_acc, valid_loss.item()
 
 
 def main():
     # TODO: add the config script
-    num_epoch = 50
-    batchsize = 16
+    num_epoch = 5
+    batchsize = 64
     print("batchsize", batchsize)
     print("hello i'm training")
     train_loader, valid_loader, unlabeled_loader = load_data(batchsize)
-    train_all(unlabeled_loader,train_loader, valid_loader, num_epoch)
+    train_all(unlabeled_loader,train_loader, valid_loader, num_epoch, batchsize)
 
 
 if __name__ == "__main__":
