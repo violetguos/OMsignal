@@ -22,6 +22,10 @@ UNLABELED_SHAPE = (657233, 3750)
 SHAPE_OF_ONE_DATA_POINT = (1, 3750)
 SIZE_OF_DATA_POINT_BYTES = 3750 * 4 # data dim times size of a float32
 NUM_IDS = 32
+
+FFT_SHAPE = (1, 1876)
+
+
 # legacy code path
 TA_LEGACY_CODE = (
     os.path.dirname(os.path.abspath(__file__)) + "/../legacy/TABaseline/code"

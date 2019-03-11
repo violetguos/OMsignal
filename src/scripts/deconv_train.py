@@ -12,6 +12,7 @@ import src.legacy.TABaseline.code.ecgdataset as ecgdataset
 from src.utils import constants
 import matplotlib.pyplot as plt
 from src.utils.cache import ModelCache
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
 
 
 
@@ -53,7 +54,7 @@ def layer_plot(x, title="ladder", fig="ladder"):
 
     for key, val in x.items():
         plt.plot(
-            val.data.cpu().numpy().reshape(constants.SHAPE_OF_ONE_DATA_POINT[1]),
+            val.data.cpu().numpy().reshape(constants.FFT_SHAPE[1]),
             label=key,
         )
 
@@ -69,6 +70,14 @@ def train_ae_mse_per_epoch(model, criterion, loader, batch_size, plot=False):
     model.train()
     for batch_idx, (data, _) in enumerate(loader):
         data = data.to(device)
+        # preprocess = Preprocessor()
+        # preprocess.to(device)
+        data = torch.squeeze(data)
+        # print("data", data.size())
+
+        # data = preprocess(data)
+        # print("data", data.shape)
+
         data = model.preprocess_norm(data, batch_size=batch_size)
         output_recon = model(data)
         mse_loss = criterion(output_recon, data)
@@ -84,7 +93,14 @@ def train_prediction_per_epoch(model, criterion,loader, batch_size):
     model.train()
     for batch_idx, (data, target) in enumerate(loader):
         data = data.to(device)
+        # preprocess = Preprocessor()
+        # preprocess.to(device)
+        data = torch.squeeze(data)
+
+        # data = preprocess(data)
+
         # only training on class label
+        # print("data", data.shape)
 
         target = target[3]
         target = target.to(device)
@@ -128,7 +144,7 @@ def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch, batch_si
 
 
     # TODO: add num epoch
-    model_save_freq = 19
+    model_save_freq = 9
     for i in range(num_epoch):
         optimizer.zero_grad()
 
@@ -166,14 +182,14 @@ def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch, batch_si
 def load_data(batchsize):
     print("Load data")
     train_dataset = ecgdataset.ECGDataset(
-        constants.T5_FAKE_VALID_LABELED_DATA, use_transform=True, target=targets
+        constants.TRAIN_LABELED_DATASET_PATH, use_transform=True, target=targets, use_fft=True
     )
 
     valid_dataset = ecgdataset.ECGDataset(
-        constants.T5_FAKE_VALID_LABELED_DATA, use_transform=False, target=targets
+        constants.VALID_LABELED_DATASET_PATH, use_transform=False, target=targets, use_fft=True
     )
 
-    unlabeled_dataset = UnlabelledDataset(constants.T5_FAKE_VALID_LABELED_DATA, use_transform=False)
+    unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, use_transform=True)
 
     train_loader = DataLoader(train_dataset, batchsize, shuffle=True, num_workers=1)
     valid_loader = DataLoader(valid_dataset, batchsize, shuffle=False, num_workers=1)
@@ -222,7 +238,7 @@ def evaluate_performance(model, valid_loader, e, batch_size):
 
 def main():
     # TODO: add the config script
-    num_epoch = 5
+    num_epoch = 50
     batchsize = 64
     print("batchsize", batchsize)
     print("hello i'm training")

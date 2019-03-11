@@ -3,7 +3,6 @@ from torch.utils.data import sampler, DataLoader
 from src.legacy.TABaseline.code import data_augmentation as da
 import numpy as np
 
-
 def compress_id(raw_ids):
     # ids values run up to 43, but only 32 are present in the dataset
     # takes the raw ids as input, returns ids running from 0 to 31
@@ -36,7 +35,7 @@ def read_data(filename):
 
 class ECGDataset(torch.utils.data.Dataset):
 
-    def __init__(self, filepath, use_transform=False, target='userid'):
+    def __init__(self, filepath, use_transform=False, target='userid', use_fft=False):
         """
         Parameters
         ----------
@@ -73,6 +72,7 @@ class ECGDataset(torch.utils.data.Dataset):
                         'rr_stdev': rr_stdev,
                         'userid': userid
                         }
+        self.use_fft = use_fft
 
     def __len__(self):
         """Get the number of ecgs in the dataset.
@@ -114,8 +114,16 @@ class ECGDataset(torch.utils.data.Dataset):
         if len(label) == 1:
             label = label[0]
 
-        if self.use_transform:
-            ecg = self.train_transform(ecg)
+
+        if self.use_fft:
+            arr_copy = np.copy(ecg)
+            # print("Ecg", ecg.shape)
+
+            arr_copy = np.fft.rfft(arr_copy, axis=0).astype(np.float32)
+            ecg = torch.Tensor(arr_copy).float()
+            # print("ecg", ecg.size())
+        # if self.use_transform:
+        #     ecg = self.train_transform(arr_copy)
         else:
             ecg = torch.Tensor(ecg).float()
 

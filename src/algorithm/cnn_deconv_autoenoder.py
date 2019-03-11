@@ -16,7 +16,7 @@ class CnnDeconvAutoEncoder(nn.Module):
         self.preprocess = pp.Preprocessor()
         self.dropout = nn.Dropout(p=dropout)
         self.batch_norm0 = nn.BatchNorm1d(input_size)
-        l_out = constants.SHAPE_OF_ONE_DATA_POINT[1]
+        l_out = constants.FFT_SHAPE[1]
 
         # encoders operations
         input_size_buf_block1 = input_size
@@ -44,7 +44,6 @@ class CnnDeconvAutoEncoder(nn.Module):
         self.batch_norm2 = nn.BatchNorm1d(hidden_size)
         self.pool2 = nn.MaxPool1d(pool_size, return_indices=True)
         l_out = self.l_out_maxpool1d(l_out, pool_size)
-
         input_size = hidden_size
         input_size_buf_block3 = input_size
         hidden_size_buf_block3 = hidden_size
@@ -57,11 +56,9 @@ class CnnDeconvAutoEncoder(nn.Module):
         self.pool3 = nn.MaxPool1d(pool_size, return_indices=True)
         l_out = self.l_out_maxpool1d(l_out, pool_size)
         final_encoder_l_out = l_out
+        print("lout", l_out)
 
-        # print("final_encoder_l_out", final_encoder_l_out)
-        # print("hidden_size_buf_block3", hidden_size_buf_block3)
-        # test_shape_final = final_encoder_l_out * hidden_size_buf_block3
-        # print("predef shape",test_shape_final )
+
         self.prediction_layer = nn.Linear(
                 final_encoder_l_out * hidden_size_buf_block3 ,
                 constants.NUM_IDS
@@ -162,27 +159,36 @@ class CnnDeconvAutoEncoder(nn.Module):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.batch_norm1(x)
+
+        # Need the size before pool() as an argument to unpool() for stability
+        out1 = list(x.size())
         x, idx1 = self.pool1(x)
+
         x = self.conv3(x)
         x = self.conv4(x)
         x = self.batch_norm2(x)
+
+        out2 = list(x.size())
         x, idx2 = self.pool2(x)
+
         x = self.conv5(x)
         x = self.conv6(x)
         x = self.batch_norm3(x)
+
+        out3 = list(x.size())
         x, idx3 = self.pool3(x)
-        return x, idx1, idx2, idx3
 
-    def decoder(self, x, idx1, idx2, idx3):
+        return x, idx1, idx2, idx3, out1, out2, out3
+
+    def decoder(self, x, idx1, idx2, idx3, out1, out2, out3):
         # decoder
-        x = self.unpool3(x, idx3)
-
+        x = self.unpool3(x, idx3, output_size=out3)
         x = self.deconv6(x)
         x = self.deconv5(x)
-        x = self.unpool2(x, idx2)
+        x = self.unpool2(x, idx2, output_size=out2)
         x = self.deconv4(x)
         x = self.deconv3(x)
-        x = self.unpool1(x, idx1)
+        x = self.unpool1(x, idx1, output_size=out1)
         x = self.deconv2(x)
         x = self.deconv1(x)
         # many online literatures have a tanh there so let's try it
@@ -190,10 +196,10 @@ class CnnDeconvAutoEncoder(nn.Module):
         return x
 
     def preprocess_norm(self, x, batch_size):
-        x = x.view(len(x), constants.SHAPE_OF_ONE_DATA_POINT[0], constants.SHAPE_OF_ONE_DATA_POINT[1])
+        x = x.view(len(x), constants.FFT_SHAPE[0], constants.FFT_SHAPE[1])
 
         x = self.preprocess(x)
-        x = x.view(len(x), 1, constants.SHAPE_OF_ONE_DATA_POINT[1])
+        x = x.view(len(x), 1, constants.FFT_SHAPE[1])
         # print("x = self.batch_norm0(x)",  x.size())
 
         x = self.batch_norm0(x)
@@ -204,16 +210,13 @@ class CnnDeconvAutoEncoder(nn.Module):
     def forward(self, x, prediction=False):
 
         if prediction:
-            x, idx1, idx2, idx3 = self.encoder(x)
-            # test = x.view(x.size(0), -1)
-            # print("pred test shape", test.shape)
+            x, idx1, idx2, idx3, out1, out2, out3 = self.encoder(x)
             y = self.prediction_layer(x.view(x.size(0), -1))
-            # x = self.decoder(x, idx1, idx2, idx3)
             return x, y
 
 
         else:
-            x,  idx1, idx2, idx3 = self.encoder(x)
-            x = self.decoder(x,  idx1, idx2, idx3)
+            x, idx1, idx2, idx3, out1, out2, out3 = self.encoder(x)
+            x = self.decoder(x,  idx1, idx2, idx3, out1, out2, out3)
             return x
 
