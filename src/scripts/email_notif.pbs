@@ -21,7 +21,7 @@ export PYTHONPATH="${PYTHONPATH}:/block2"
 cd "${PBS_O_WORKDIR}"
 
 
-s_exec /miniconda/bin/python unsupervised_pretraining.py ../algorithm/autoencoder_input.in model_input.in
+s_exec /miniconda/bin/python deconv_train.py
 
 # If out and err dirs don't exist, make them
 mkdir -p out

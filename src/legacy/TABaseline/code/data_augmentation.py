@@ -16,7 +16,10 @@ def adding_partial_noise(x, second=10, duration=2, num_samples_per_second=125):
     # a noise that matches the mean and variance of the dropped samples.
     begin = second * num_samples_per_second
     end = (second + duration) * num_samples_per_second
+
     section = x[begin:end]
+
+
     delta_x = np.std(section)
     mean_x = np.mean(section)
     noise = np.random.normal(mean_x, delta_x, end - begin)
