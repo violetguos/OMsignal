@@ -22,10 +22,15 @@ def csv_to_list(csv_fp="log/fft_tb/run_fft_tb-tag-Train_acc.csv"):
     return x, y
 
 if __name__ == "__main__":
+    csv_fp = "log/fft_tb/run_fft_tb-tag-Train_acc.csv"
     x, y = csv_to_list()
     plt.plot(x, y, label="Training accuracy")
     plt.xlabel("Number of epochs")
     plt.ylabel("Classification accuracy (%) \n / Cross-entropy loss")
     plt.title("ConvAE with FFT")
     plt.legend()
+    fig = 'train_curve'
+    plt.savefig(fig + ".png")
     plt.show()
+    plt.close()
+    plt.clf()
