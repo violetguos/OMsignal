@@ -20,8 +20,7 @@ export PYTHONPATH="${PYTHONPATH}:/block2"
 # Set the working directory to where the job is launched
 cd "${PBS_O_WORKDIR}"
 
-
-s_exec /miniconda/bin/python semisupervised_training.py
+s_exec /miniconda/bin/python deconv_train.py
 
 # If out and err dirs don't exist, make them
 mkdir -p out

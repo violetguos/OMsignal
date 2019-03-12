@@ -11,14 +11,14 @@ import sys
 sys.path.append(os.path.abspath(os.path.join('..', '..')))
 import math
 
-from omsignal.utils.dataloader_utils import OM_dataset, Rank_dataset, import_OM, import_train_valid, get_dataloader
-from omsignal.utils.scoring_function import scorePerformance
-from config import LOG_DIR, MODELS_DIR
-from omsignal.base_networks import CNNRegression, CNNClassification
-from omsignal.om_networks import CNNRank
-from omsignal.utils.preprocessor import Preprocessor
-from omsignal.utils.rr_stdev import RR_Regressor, make_prediction
-from omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import OM_dataset, Rank_dataset, import_OM, import_train_valid, get_dataloader
+from src.legacy.TeamB1pomt5.code.omsignal.utils.scoring_function import scorePerformance
+from src.legacy.TeamB1pomt5.code.config import LOG_DIR, MODELS_DIR
+from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNRegression, CNNClassification
+from src.legacy.TeamB1pomt5.code.omsignal.om_networks import CNNRank
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.rr_stdev import RR_Regressor, make_prediction
+from src.legacy.TeamB1pomt5.code.omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
 from tqdm import tqdm
 
 from torch.utils.data import DataLoader

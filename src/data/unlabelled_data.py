@@ -59,7 +59,13 @@ class UnlabelledDataset(torch.utils.data.Dataset):
         )
 
         if self.use_transform:
-            ecg = self.train_transform(ecg)
+            # ecg = self.train_transform(ecg)
+            # print("in unlabelled", ecg.shape)
+            arr_copy = np.copy(ecg)
+            arr_copy = np.fft.rfft(arr_copy, axis=1).astype(np.float32)
+            ecg = torch.Tensor(arr_copy).float()
+            # print("ecg", ecg.size())
+
         else:
             ecg = torch.Tensor(ecg).float()
 
