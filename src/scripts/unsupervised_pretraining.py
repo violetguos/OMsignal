@@ -235,7 +235,7 @@ def load_data(model_hp_dict, autoencoder_hp_dict):
     valid_dataset = ecgdataset.ECGDataset(
         constants.VALID_LABELED_DATASET_PATH, False, target=targets
     )
-
+    # do not transform the unlabelled data
     unlabeled_dataset = UnlabelledDataset(constants.UNLABELED_DATASET_PATH, False)
 
     train_loader = DataLoader(
