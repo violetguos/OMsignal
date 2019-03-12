@@ -5,7 +5,8 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 from torch.autograd import Variable
-
+import sys
+import configparser
 from tensorboardX import SummaryWriter
 from src.data.unlabelled_data import UnlabelledDataset
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
@@ -13,6 +14,7 @@ from src.utils import constants
 import matplotlib.pyplot as plt
 from src.utils.cache import ModelCache
 from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.utils.os_helper import get_hyperparameters
 
 
 
@@ -34,6 +36,12 @@ targets = constants.TARGETS
 # END global variables #
 
 def noise(noise_level, data):
+    """
+    injects noise into the data
+    :param noise_level: std for a gaussian
+    :param data: a batch tensor
+    :return:
+    """
     noise = np.random.normal(
         loc=0.0, scale=noise_level, size=data.size()
     )
@@ -67,6 +75,15 @@ def layer_plot(x, title="ladder", fig="ladder"):
 
 
 def train_ae_mse_per_epoch(model, criterion, loader, batch_size, plot=False):
+    """
+    trains the encoder and decoder for one epoch
+    :param model: an autoendoer object
+    :param criterion: the mse loss
+    :param loader: data loader
+    :param batch_size: size of one batch
+    :param plot: to plot the input/output of the AE or not
+    :return: mse loss
+    """
     model.train()
     for batch_idx, (data, _) in enumerate(loader):
         data = data.to(device)
@@ -102,7 +119,7 @@ def train_prediction_per_epoch(model, criterion,loader, batch_size):
         # only training on class label
         # print("data", data.shape)
 
-        target = target[3]
+        target = target[3]  # only trains on ID
         target = target.to(device)
         target = target.squeeze()
 
@@ -115,6 +132,13 @@ def train_prediction_per_epoch(model, criterion,loader, batch_size):
 
 
 def classification_accuracy(output, target):
+    """
+    calculates the user id classification accuracy
+    Customized numpy to torch conversions for this conv-decov AE model
+    :param output:
+    :param target:
+    :return:
+    """
     correct = 0.0
     total = 0.0
     if use_gpu:
@@ -133,6 +157,17 @@ def classification_accuracy(output, target):
 
 
 def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch, batch_size):
+
+    """
+    Main training function for the conv-deconv AE mdoel
+
+    :param unlabelled_loader: loader for unlabelled data
+    :param train_loader: loader for labelled training data
+    :param valid_loader: loader for validation set
+    :param num_epoch: number of epoches to train
+    :param batch_size: size of one batch
+    :return:
+    """
     cache = ModelCache()
     model = CnnDeconvAutoEncoder(1, 8)
     model.to(device)
@@ -142,8 +177,6 @@ def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch, batch_si
     criterion_pred = nn.CrossEntropyLoss()
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau()
 
-
-    # TODO: add num epoch
     model_save_freq = 9
     for i in range(num_epoch):
         optimizer.zero_grad()
@@ -172,10 +205,10 @@ def train_all(unlabelled_loader, train_loader, valid_loader, num_epoch, batch_si
         cache.scalar_summary('Valid_acc', valid_acc, i)
         cache.scalar_summary('Valid_cross_entropy', valid_loss, i)
         cache.scalar_summary('train_mse_loss', mse_loss, i)
-        if i % model_save_freq:
+        if i % model_save_freq == 0:
             cache.save(model, i)
             epoch_plot = {"data": batch_data[0], "out": batch_out[0]}
-            layer_plot(epoch_plot, fig="real_data" + str(i))
+            layer_plot(epoch_plot, fig="fft_real_data" + str(i))
     cache.save(model, num_epoch)
 
 
@@ -206,12 +239,11 @@ def evaluate_performance(model, valid_loader, e, batch_size):
     total = 0.0
     model.eval()
     for batch_idx, (data, target) in enumerate(valid_loader):
-        # a hack for now
         use_gpu = torch.cuda.is_available()
         device = torch.device("cuda:0" if use_gpu else "cpu")
         if use_gpu:
             data = data.cuda()
-        target = target[3] #only read the IDs
+        target = target[3]  #only read the IDs
         target = target.to(device=device)
         target = target.squeeze()
         data = model.preprocess_norm(data, batch_size=batch_size)
@@ -236,15 +268,17 @@ def evaluate_performance(model, valid_loader, e, batch_size):
     return valid_acc, valid_loss.item()
 
 
-def main():
-    # TODO: add the config script
-    num_epoch = 50
-    batchsize = 64
-    print("batchsize", batchsize)
-    print("hello i'm training")
-    train_loader, valid_loader, unlabeled_loader = load_data(batchsize)
-    train_all(unlabeled_loader,train_loader, valid_loader, num_epoch, batchsize)
+
+def main(config_model):
+
+    model_config = configparser.ConfigParser()
+    model_config.read(config_model)
+    model_hp_dict = get_hyperparameters(model_config)
+
+    # Call functions to run models
+    train_loader, valid_loader, unlabeled_loader = load_data(model_hp_dict['batch_size'])
+    train_all(unlabeled_loader,train_loader, valid_loader, model_hp_dict['nepoch'], model_hp_dict['batch_size'])
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1])

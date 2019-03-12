@@ -4,14 +4,7 @@ from src.utils import constants
 
 
 class CnnDeconvAutoEncoder(nn.Module):
-    def __init__(
-        self,
-        input_size,
-        hidden_size,
-        kernel_size=2,
-        pool_size=2,
-        dropout=0,
-    ):
+    def __init__(self, input_size, hidden_size, kernel_size=2, pool_size=2, dropout=0):
         super(CnnDeconvAutoEncoder, self).__init__()
         self.preprocess = pp.Preprocessor()
         self.dropout = nn.Dropout(p=dropout)
@@ -58,10 +51,8 @@ class CnnDeconvAutoEncoder(nn.Module):
         final_encoder_l_out = l_out
         print("lout", l_out)
 
-
         self.prediction_layer = nn.Linear(
-                final_encoder_l_out * hidden_size_buf_block3 ,
-                constants.NUM_IDS
+            final_encoder_l_out * hidden_size_buf_block3, constants.NUM_IDS
         )
 
         # decoder operations
@@ -101,9 +92,6 @@ class CnnDeconvAutoEncoder(nn.Module):
             hidden_size_buf_block1, input_size_buf_block1, kernel_size
         )
 
-
-
-        # TODO: what is selu???
         self.nl = nn.SELU()
 
     def l_out_conv1d(self, l_in, kernel_size, stride=1, padding=0, dilation=1):
@@ -204,19 +192,18 @@ class CnnDeconvAutoEncoder(nn.Module):
 
         x = self.batch_norm0(x)
 
-
         return x
 
     def forward(self, x, prediction=False):
 
         if prediction:
+            # Need the size and indices before pool() as an argument to unpool() for stability
             x, idx1, idx2, idx3, out1, out2, out3 = self.encoder(x)
+            # if running on labelled data, go to MLP layer for prediction
             y = self.prediction_layer(x.view(x.size(0), -1))
             return x, y
 
-
         else:
             x, idx1, idx2, idx3, out1, out2, out3 = self.encoder(x)
-            x = self.decoder(x,  idx1, idx2, idx3, out1, out2, out3)
+            x = self.decoder(x, idx1, idx2, idx3, out1, out2, out3)
             return x
-
