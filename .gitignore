@@ -1,7 +1,10 @@
 # Project files to ignore
 log/
-t2_report.pdf
+t2_report.*
+# team 2's report
 TeamB1pomt2/
+# team 2 code
+*.png
 
 # add exceptions in log/ after training is finished
 
