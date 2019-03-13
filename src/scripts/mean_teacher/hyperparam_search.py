@@ -1,4 +1,5 @@
 import argparse
+from datetime import datetime
 import logging
 import configparser
 import numpy as np
@@ -43,7 +44,7 @@ if __name__ == "__main__":
     # Parsing input arguments
     # Parse input arguments
     parser = argparse.ArgumentParser(description='Choose task and model.')
-    parser.add_argument('-task', help='Task to train the model for. Possible choices: [pr_mean, rt_mean, rr_stdev, userid]', default='pr_mean')
+    parser.add_argument('-task', help='Task to train the model for. Possible choices: [pr_mean, rt_mean, rr_stdev, userid]', default='userid')
     parser.add_argument('-model', help='Model to use. dict: [LSTM, RNN, MLP, CONV1D, CONV1DBN, CONV1D_DIL]', default='CONV1D_DIL')
     args = parser.parse_args()
 
@@ -97,52 +98,22 @@ if __name__ == "__main__":
                                      -1 *np.ones(len(unlabeled_data))[:,np.newaxis,np.newaxis]), axis=2)
 
     # Define and Instanciate the model
-    modeltype = args.model
-    if modeltype == 'LSTM':
-        model = models.LSTMLinear(
-            input_size, out_size, hidden_size, n_layers, dropout)
-        model_ema = models.LSTMLinear(
-            input_size, out_size, hidden_size, n_layers, dropout)
-        model_ema = create_ema_model(model_ema)
-    elif modeltype == 'RNN':
-        model = models.RNNLinear(input_size, out_size,
-                                 hidden_size, n_layers, dropout)
-        model_ema = models.RNNLinear(input_size, out_size,
-                                 hidden_size, n_layers, dropout)
-        model_ema = create_ema_model(model_ema)
-    elif modeltype == 'MLP':
-        model = models.MLP(input_size, out_size, hidden_size)
-        model_ema = models.MLP(input_size, out_size, hidden_size)
-        model_ema = create_ema_model(model_ema)
-    elif modeltype == 'CONV1D':
-        model = models.Conv1DLinear(
-            1, out_size, hidden_size, kernel_size, pool_size)
-        model_ema = models.Conv1DLinear(
-            1, out_size, hidden_size, kernel_size, pool_size)
-        model_ema = create_ema_model(model_ema)
-    elif modeltype == 'CONV1DBN':
-        model = models.Conv1DBNLinear(
-            1, out_size, hidden_size, kernel_size, pool_size, dropout)
-        model_ema = models.Conv1DBNLinear(
-            1, out_size, hidden_size, kernel_size, pool_size, dropout)
-        model_ema = create_ema_model(model_ema)
-    elif modeltype == 'CONV1D_DIL':
-        model = Conv1DLinear_Dil(
-            1, out_size, hidden_size, kernel_size, pool_size, dilation=dilation)
-        model_ema = Conv1DLinear_Dil(
-            1, out_size, hidden_size, kernel_size, pool_size, dilation=dilation)
-        model_ema = create_ema_model(model_ema)
+    for hidden_size in [24,32]:
+        for kernel_size in [4,5,6]:
+            tb_path = hyperparameters[5]['tbpath'] + "/{date:%Y-%m-%d_%H-%M-%S}".format(date=datetime.now()) + "/hs-{}_ks-{}_di-{}_ps-{}".format(hidden_size, kernel_size, dilation, pool_size)
+            model = Conv1DLinear_Dil(
+                1, out_size, hidden_size, kernel_size, pool_size)
+            model_ema = Conv1DLinear_Dil(
+                1, out_size, hidden_size, kernel_size, pool_size)
+            model_ema = create_ema_model(model_ema)
 
-    else:
-        print('Model should be set to LSTM/RNN/MLP/CONV1D/CONV1DBN/CONV1D_DIL')
-        exit()
+            # Model to gpu, Create optimizer, criterion and train
+            model.to(device)
+            model_ema.to(device)
 
-    # Model to gpu, Create optimizer, criterion and train
-    model.to(device)
-    model_ema.to(device)
+            evaluation_epochs = 1
+            checkpoint_epochs = 20
 
-    evaluation_epochs = 1
-    checkpoint_epochs = 5
 
-    task_training(args.task, model, model_ema, train_data, valid_data, unlabeled_data, device=device,
-                  **hyperparameters[1], **hyperparameters[2], **hyperparameters[4], tbpath=hyperparameters[5]['tbpath'])
+            task_training(args.task, model, model_ema, train_data, valid_data, unlabeled_data, device=device,
+                          **hyperparameters[1], **hyperparameters[2], **hyperparameters[4], tbpath=tb_path)
