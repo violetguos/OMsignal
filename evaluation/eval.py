@@ -8,17 +8,69 @@ import sys
 from src.utils.os_helper import write_memfile
 sys.path.append(os.path.abspath(os.path.join('..')))
 
+# Block 2 Team 1 custom imports
+import src.legacy.TABaseline.code.ecgdataset as ecgdataset
+from torch.utils.data import DataLoader
+from src.utils import constants
 
 
 def eval_model(dataset_file, model_filename):
+
     '''
     Skeleton for your testing function. Modify/add
     all arguments you will need.
     '''
+    model = None
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     # Load your best model
-    pass
+    if model_filename:
+        model_filename = Path(model_filename)
+        print("\nLoading model from", model_filename.absolute())
+        model = torch.load(model_filename, map_location=device)
 
+        # Load a multitask model
+
+
+    if model:
+        targets = constants.TARGETS
+        # according to our config files
+
+        batch_size = 16
+        # load data
+        test_dataset = ecgdataset.ECGDataset(
+            dataset_file, False, target=targets
+        )
+        test_loader = DataLoader(
+            test_dataset, batch_size, shuffle=False, num_workers=1
+        )
+        model.eval()
+        # record results in a list, 
+        y_pred_list = []
+        for x, y in test_loader:
+            x = x.to(device)
+
+            outputs = model(x)
+            if device == 'cpu':
+                y_pred_list.append(outputs.data.numpy())
+            else:
+                y_pred_list.append(outputs.cpu().data.numpy())
+        # concate a list of numpy arrays
+        y_pred = np.concatenate(y_pred_list)
+
+
+    else:
+
+        print("\nYou did not specify a model, generating dummy data instead!")
+        n_classes = 32
+        num_data = 10
+
+        y_pred = np.concatenate(
+            [np.random.rand(num_data, 3),
+             np.random.randint(0, n_classes, (num_data, 1))
+             ], axis=1
+        ).astype(np.float32)
+
+    return y_pred
 
 
 
