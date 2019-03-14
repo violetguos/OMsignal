@@ -554,5 +554,8 @@ Temporary Items
 !fake_valid_x.dat
 !fake_train_x.dat
 
-# TensorBoard dict
+# TensorBoard, data and result related files
 Tensorboard/
+results/
+data/
+runs/

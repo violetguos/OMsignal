@@ -14,7 +14,7 @@ export PYTHONPATH="${PYTHONPATH}:/block2"
 cd "${PBS_O_WORKDIR}"
 
 
-s_exec /miniconda/bin/python src/scripts/mean_teacher/mean_teacher_main.py
+s_exec /miniconda/bin/python src/scripts/mean_teacher/mean_teacher_main.py -userid -CONV1D -True
 
 # If out and err dirs don't exist, make them
 mkdir -p out
