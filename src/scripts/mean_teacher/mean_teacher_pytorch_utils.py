@@ -11,7 +11,7 @@ from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 from scipy.stats import kendalltau
 
-from src.utils.mean_teacher_data_utils import create_DataLoaders, AverageMeterSet, RunContext
+from src.data.mean_teacher_data_utils import create_DataLoaders, AverageMeterSet, RunContext
 
 ## Global variables :: some of them will be found in main codes ##
 LOG = logging.getLogger('main')
