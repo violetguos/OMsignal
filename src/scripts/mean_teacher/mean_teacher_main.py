@@ -11,10 +11,10 @@ import src.legacy.TABaseline.code.baseline_models as models
 
 from src.legacy.TeamB1pomt5.code.omsignal.utils.fft_utils import make_fft
 
-from src.scripts.mean_teacher.data_utils import import_OM
-from src.scripts.mean_teacher.pytorch_utils import task_training, create_ema_model
-from src.scripts.mean_teacher.model import Conv1DLinear
-from src.scripts.mean_teacher.data_utils import get_hyperparameters
+from src.utils.mean_teacher_data_utils import import_OM
+from src.scripts.mean_teacher.mean_teacher_pytorch_utils import task_training, create_ema_model
+from src.algorithm.mean_teacher_model import Conv1DLinear
+from src.utils.mean_teacher_data_utils import get_hyperparameters
 
 ## Global variables ##
 
@@ -151,7 +151,6 @@ if __name__ == "__main__":
 
     # Storing training info
     tb_path = hyperparameters[5]['tbpath'] + "/{task}".format(task=args.task)
-    "/{date:%Y-%m-%d_%H-%M-%S}".format(date=datetime.now())
     # Storing training config
     json = json.dumps(hyperparameters[:])
     f = open(tb_path + "/hyperparams_"+"{date:%Y-%m-%d_%H-%M}".format(date=datetime.now())+".json", "w")

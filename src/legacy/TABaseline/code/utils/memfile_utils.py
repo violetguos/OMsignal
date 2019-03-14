@@ -25,7 +25,6 @@ def fashion_scatter(x, colors):
 
     import matplotlib.pyplot as plt
     import matplotlib.patheffects as PathEffects
-    %matplotlib inline
     import seaborn as sns
 
     # choose a color palette with seaborn.
