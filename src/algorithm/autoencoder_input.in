@@ -1,0 +1,14 @@
+[optimizer]
+learning_rate = 0.0005
+momentum = 0.9
+nepoch = 10
+batch_size = 32
+
+[model]
+name = BASE_AE
+hidden_size = 16
+dropout = 0.1
+n_layers = 1
+
+
+

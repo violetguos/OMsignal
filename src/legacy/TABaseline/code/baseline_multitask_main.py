@@ -436,6 +436,7 @@ def training_loop(
         # Checkpoint
         if epoch % chkptg_freq == 0:
             save_model(epoch, model, prefix, path)
+
     save_model(hyperparameters_dict['nepoch'], model, prefix, path)
     return [
         (train_loss_history, train_acc_history),
