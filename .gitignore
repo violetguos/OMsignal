@@ -553,3 +553,6 @@ Temporary Items
 !fake_data.dat
 !fake_valid_x.dat
 !fake_train_x.dat
+
+# TensorBoard dict
+Tensorboard/
