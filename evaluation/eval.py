@@ -10,8 +10,10 @@ sys.path.append(os.path.abspath(os.path.join('..')))
 
 # Block 2 Team 1 custom imports
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
+from src.data.unlabelled_data import UnlabelledDataset
 from torch.utils.data import DataLoader
 from src.utils import constants
+from src.algorithm.CNN_multitask_semisupervised import Conv1DBNLinear
 
 
 def eval_model(dataset_file, model_filename):
@@ -22,41 +24,128 @@ def eval_model(dataset_file, model_filename):
     '''
     model = None
     device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    location = 'cuda:0' if torch.cuda.is_available() else 'cpu'
+
+    targets = constants.TARGETS
+    target_out_size_dict = {"pr_mean": 1, "rt_mean": 1, "rr_stdev": 1, "userid": 32}
+    target_labels = targets.split(",")
+    target_labels = [s.lower().strip() for s in target_labels]
+
+
+    hidden_size = 16
+    kernel_size = 8
+    pool_size = 4
+    dropout = 0.1
+
     # Load your best model
     if model_filename:
         model_filename = Path(model_filename)
         print("\nLoading model from", model_filename.absolute())
-        model = torch.load(model_filename, map_location=device)
+        # define the model
+        # Model initialization
+        target_labels = targets.split(",")
+        target_labels = [s.lower().strip() for s in target_labels]
+        if len(target_labels) == 1:
+            out_size = target_out_size_dict[target_labels[0]]
+        else:
+            out_size = [target_out_size_dict[a] for a in target_labels]
 
         # Load a multitask model
-
+        model = Conv1DBNLinear(
+        1, out_size, hidden_size, kernel_size, pool_size, dropout
+    )
+        # model.to_device(device)
+        model.load_state_dict(torch.load('/rap/jvb-000-aa/COURS2019/etudiants/submissions/b2pomt1/model/b2pomt1_final_model.pt',
+                           map_location=location))
+        model.to(device)
 
     if model:
-        targets = constants.TARGETS
         # according to our config files
-
-        batch_size = 16
+        batch_size = 10
         # load data
-        test_dataset = ecgdataset.ECGDataset(
-            dataset_file, False, target=targets
+
+        test_dataset = UnlabelledDataset(
+            dataset_file
         )
         test_loader = DataLoader(
             test_dataset, batch_size, shuffle=False, num_workers=1
         )
+
+        score_param_index = [
+            None if target_labels.count("pr_mean") == 0 else target_labels.index("pr_mean"),
+            None if target_labels.count("rt_mean") == 0 else target_labels.index("rt_mean"),
+            None
+            if target_labels.count("rr_stdev") == 0
+            else target_labels.index("rr_stdev"),
+            None if target_labels.count("userid") == 0 else target_labels.index("userid"),
+        ]
+
+        prMean_pred  = None
+        rtMean_pred  = None
+        rrStd_pred  = None
+        ecgId_pred = None
+
+
         model.eval()
-        # record results in a list, 
-        y_pred_list = []
-        for x, y in test_loader:
+
+        for x, _ in test_loader:
             x = x.to(device)
+            x = x.view(batch_size, 1, 3750)
 
             outputs = model(x)
-            if device == 'cpu':
-                y_pred_list.append(outputs.data.numpy())
-            else:
-                y_pred_list.append(outputs.cpu().data.numpy())
-        # concate a list of numpy arrays
-        y_pred = np.concatenate(y_pred_list)
+            if score_param_index[0] is not None:
+                i = score_param_index[0]
+                if prMean_pred is None:
+                    prMean_pred = outputs[i].view(-1).tolist()
+                else:
+                    prMean_pred.extend(outputs[i].view(-1).tolist())
+            if score_param_index[1] is not None:
+                i = score_param_index[1]
+                if rtMean_pred is None:
+                    rtMean_pred = outputs[i].view(-1).tolist()
+                else:
+                    rtMean_pred.extend(outputs[i].view(-1).tolist())
+            if score_param_index[2] is not None:
+                i = score_param_index[2]
+                if rrStd_pred is None:
+                    rrStd_pred = outputs[i].view(-1).tolist()
+                else:
+                    rrStd_pred.extend(outputs[i].view(-1).tolist())
+            if score_param_index[3] is not None:
+                i = score_param_index[3]
+                _, pred_classes = torch.max(outputs[i], dim=1)
+                if ecgId_pred is None:
+                    ecgId_pred = pred_classes.view(-1).tolist()
+                else:
+                    ecgId_pred.extend(pred_classes.view(-1).tolist())
+            print("type prMean_pred[0]", type(prMean_pred[0]))
 
+        # metrics
+        prMean_pred = None if prMean_pred is None else np.array(
+            prMean_pred, dtype=np.float32)
+        print("type prMean_pred[0]", type(prMean_pred[0]))
+        rtMean_pred = None if rtMean_pred is None else np.array(
+            rtMean_pred, dtype=np.float32)
+
+        rrStd_pred = None if rrStd_pred is None else np.array(
+            rrStd_pred, dtype=np.float32)
+
+        ecgId_pred = None if ecgId_pred is None else np.array(
+            ecgId_pred, dtype=np.int32)
+
+        outputs = np.hstack((prMean_pred.reshape((-1, 1)), rtMean_pred.reshape((-1, 1)),
+                            rrStd_pred.reshape((-1, 1)), ecgId_pred.reshape((-1, 1))))
+
+        print("outputs", outputs)
+        print("outputs type", type(outputs))
+        print("outputs[0] type", type(outputs[0]))
+        print("outputs[0][0] type", type(outputs[0][0]))
+
+        print("outputs", outputs.shape)
+        print("outputs", outputs)
+
+        # concate a list of numpy arrays
+        y_pred = outputs
 
     else:
 
@@ -69,6 +158,13 @@ def eval_model(dataset_file, model_filename):
              np.random.randint(0, n_classes, (num_data, 1))
              ], axis=1
         ).astype(np.float32)
+
+    print("y_pred type", type(y_pred))
+    print("y_pred[0] type", type(y_pred[0]))
+    print("y_pred[0][0] type", type(y_pred[0][0]))
+
+    print("y_pred", y_pred.shape)
+    print("y_pred", y_pred)
 
     return y_pred
 

@@ -2,19 +2,12 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.utils.data import DataLoader, TensorDataset
-import src.legacy.TABaseline.code.baseline_models as models
-import src.legacy.TABaseline.code.scoring_function as scoreF
+from torch.utils.data import DataLoader
 import src.legacy.TABaseline.code.ecgdataset as ecgdataset
-from src.algorithm.autoencoder import AutoEncoder, CnnAutoEncoder
+from src.algorithm.autoencoder import CnnAutoEncoder
 from src.legacy.TABaseline.code import Preprocessor as pp
 from src.data.unlabelled_data import UnlabelledDataset
-from src.legacy.TABaseline.code.baseline_multitask_main import (
-    eval_model,
-    train_model,
-    training_loop,
-    load_model,
-)
+from src.legacy.TABaseline.code.baseline_multitask_main import training_loop
 from src.algorithm.CNN_multitask import Conv1DBNLinear
 from src.utils import constants
 from src.utils.cache import ModelCache
@@ -34,14 +27,8 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 np.random.seed(seed)
 
-target_out_size_dict = {"pr_mean": 1, "rt_mean": 1, "rr_stdev": 1, "userid": 32}
-target_criterion_dict = {
-    "pr_mean": nn.MSELoss(),
-    "rt_mean": nn.MSELoss(),
-    "rr_stdev": nn.MSELoss(),
-    "userid": nn.CrossEntropyLoss(),
-}
-
+target_out_size_dict = constants.TARGET_OUT_SIZE_DICT
+target_criterion_dict = constants.TARGET_CRITERION_DICT
 targets = constants.TARGETS
 # END global variables #
 
@@ -296,7 +283,7 @@ if __name__ == "__main__":
 
     # Read the ini file name from sys arg to avoid different people's different local set up
     # Use a shell script instead to run on your setup
+    # main("src/algorithm/autoencoder_input.in", "src/scripts/model_input.in")
 
-    #main(sys.argv[1], sys.argv[2])
-    main("src/algorithm/autoencoder_input.in", "src/scripts/model_input.in")
+    main(sys.argv[1], sys.argv[2])
 

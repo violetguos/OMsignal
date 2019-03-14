@@ -1,13 +1,13 @@
-from src.algorithm.ladder import (
+from algorithm.ladder.ladder import (
     model_init,
     evaluate_performance,
     layer_plot,
     supervised_cost_scale,
     unsupervised_cost_scale,
     get_batch_data,
-    encoder_forward,
-    load_data
+    encoder_forward
 )
+from src.scripts.unsupervised_pretraining import load_data
 import torch
 import numpy as np
 import argparse

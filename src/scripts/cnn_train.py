@@ -29,7 +29,7 @@ torch.manual_seed(seed)
 torch.cuda.manual_seed(seed)
 np.random.seed(seed)
 
-target_out_size_dict = {"pr_mean": 1, "rt_mean": 1, "rr_stdev": 1, "userid": 32}
+target_out_size_dict = constants.TARGET_OUT_SIZE_DICT
 target_criterion_dict = {
     "pr_mean": nn.MSELoss(),
     "rt_mean": nn.MSELoss(),

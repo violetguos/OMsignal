@@ -74,20 +74,6 @@ class UnlabelledDataset(torch.utils.data.Dataset):
     def train_transform(self, x):
         """
         Take an ECG numpy array x
-        Randomly flip it, shift it and noise it
+        Change datatype
         """
-        # first, random flip
-        if np.random.random() > 0.5:
-            x = da.upside_down_inversion(x)
-        # shift the series by 1 to 25 steps
-        if np.random.random() > 0.5:
-            x = da.shift_series(x, shift=np.random.randint(1, 26))
-        # add partial gaussian noise 50% of the time
-        if np.random.random() > 0.5:
-            x = da.adding_partial_noise(
-                x, second=np.random.randint(0, 29), duration=np.random.randint(1, 3)
-            )
-        # # add gaussian noise 50% of the time
-        # if np.random.random()>0.5:
-        #     x = da.adding_noise(x,epsilon=0.01)
         return torch.Tensor(x).float()
