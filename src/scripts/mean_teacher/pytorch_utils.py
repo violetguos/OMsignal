@@ -1,26 +1,17 @@
 import os
-import sys
 import time
 import logging
-import configparser
+import shutil
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from datetime import datetime
-
 from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 from scipy.stats import kendalltau
 
-from src.legacy.meanteacher.pytorch.main import  update_ema_variables, save_checkpoint
-from src.legacy.meanteacher.pytorch.mean_teacher.losses import softmax_kl_loss, softmax_mse_loss, symmetric_mse_loss
-from src.legacy.meanteacher.pytorch.mean_teacher.utils import AverageMeterSet
-from src.legacy.meanteacher.pytorch.mean_teacher.ramps import cosine_rampdown, linear_rampup, sigmoid_rampup
-from src.legacy.meanteacher.pytorch.mean_teacher.run_context import RunContext
-
-from src.scripts.mean_teacher.data_utils import create_DataLoaders
+from src.scripts.mean_teacher.data_utils import create_DataLoaders, AverageMeterSet, RunContext
 
 ## Global variables :: some of them will be found in main codes ##
 LOG = logging.getLogger('main')
@@ -69,7 +60,7 @@ def task_training(task, model, model_ema, train_data, valid_data, unlabeled_data
     :param tbpath: Tensorboard folder path
     :return: None
     """
-    writer = SummaryWriter(tbpath) #+"/{date:%Y-%m-%d_%H-%M-%S}".format(date=datetime.now()))
+    writer = SummaryWriter(tbpath)
     context = RunContext(__file__,0)
     global global_step
     global_step = 0
@@ -104,13 +95,13 @@ def task_training(task, model, model_ema, train_data, valid_data, unlabeled_data
         if evaluation_epochs and (epoch + 1) % evaluation_epochs == 0:
             start_time = time.time()
             LOG.info("Evaluating the primary model:")
-            prec1 = validate(valid_loader, model, validation_log, global_step, epoch + 1,
-                             device=device, task=task)
+            prec1 = validate(valid_loader, model, 'Student', validation_log, global_step, epoch + 1,
+                             device=device, task=task, writer=writer)
             writer.add_scalar("Student_model_validation", prec1, epoch)
 
             LOG.info("Evaluating the EMA model:")
-            ema_prec1 = validate(valid_loader, model_ema, ema_validation_log, global_step, epoch + 1,
-                                 device=device, task=task)
+            ema_prec1 = validate(valid_loader, model_ema, 'Teacher', ema_validation_log, global_step, epoch + 1,
+                                 device=device, task=task, writer=writer)
             writer.add_scalar("Teacher_model_validation", ema_prec1, epoch)
 
             LOG.info("--- validation in %s seconds ---" % (time.time() - start_time))
@@ -168,9 +159,15 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
     class_criterion = target_criterion_dict[task]
 
     if consistency_type == 'mse':
-        consistency_criterion = softmax_mse_loss
+        if task != 'userid':
+            consistency_criterion = F.mse_loss
+        else:
+            consistency_criterion = softmax_mse_loss
     elif consistency_type == 'kl':
-        consistency_criterion = softmax_kl_loss
+        if task != 'userid':
+            consistency_criterion = F.kl_div
+        else:
+            consistency_criterion = softmax_kl_loss
     else:
         assert False, "Not a valid consistency type"
 
@@ -346,22 +343,28 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
             if consistency:
                 tb_writer.add_scalar("Cons_loss", consistency_loss.cpu().item(), epoch * len(train_loader) + i)
     if isinstance(tb_writer, SummaryWriter):
-        tb_writer.add_scalar("Student_model_training", prec1[0].cpu().item(), epoch)
-        tb_writer.add_scalar("Teacher_model_training", ema_prec1[0].cpu().item(), epoch)
+        if task != 'userid':
+            tb_writer.add_scalar("Student_model_training", perfo_score, epoch)
+            tb_writer.add_scalar("Teacher_model_training", ema_perfo_score, epoch)
+        else:
+            tb_writer.add_scalar("Student_model_training", prec1[0].cpu().item(), epoch)
+            tb_writer.add_scalar("Teacher_model_training", ema_prec1[0].cpu().item(), epoch)
 
-def validate(eval_loader, model, log, global_step, epoch, print_freq = 1, device='cuda:0',
-             task = 'userid'):
+def validate(eval_loader, model, model_type, log, global_step, epoch, print_freq = 1, device='cuda:0',
+             task = 'userid', writer = None):
     """
     Validation function; takes in a model and evaluation dataloader and measure performance of the model
     on the validation dataloader
     :param eval_loader: (DataLoader) dataloader to evaluate
     :param model: (nn.Module) model to evaluate
+    :param model_type: (string) student or teacher
     :param log: (TrainLog) log where to print the evaluation performance data
     :param global_step: (int) global learning step currently on
     :param epoch: (int) current epoch during training (record purposes)
     :param print_freq: (int) frequency during which print evaluation performance info
     :param device: (string) device for computations
     :param task: (string) task to perform
+    :param writer: (SummaryWriter) tensorboard writer
     :return:
     """
     meters = AverageMeterSet()
@@ -389,6 +392,7 @@ def validate(eval_loader, model, log, global_step, epoch, print_freq = 1, device
         if task == 'userid':
             softmax1 = F.softmax(output1, dim=1)
             class_loss = class_criterion(softmax1, target_var.squeeze())
+            writer.add_scalar("{}_valid_loss".format(model_type), class_loss, epoch)
             prec1 = accuracy(softmax1.data, target_var.data, topk=(1,))
             meters.update('class_loss', class_loss.cpu().item(), labeled_minibatch_size.cpu().item())
             meters.update('top1', prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
@@ -417,6 +421,7 @@ def validate(eval_loader, model, log, global_step, epoch, print_freq = 1, device
 
         else: # 'pr_mean', 'rt_mean', 'rr_std'
             class_loss = class_criterion(output1, target_var.float())
+            writer.add_scalar("{}_valid_loss".format(model_type), class_loss, epoch)
             perfo_score, _ = kendalltau(output1.detach().cpu().numpy(), target_var.detach().cpu().numpy())
             meters.update('class_loss', class_loss.cpu().item(), labeled_minibatch_size.cpu().item())
             meters.update('kentau', perfo_score, labeled_minibatch_size.cpu().item())
@@ -502,3 +507,74 @@ def create_ema_model(model):
     for param in model.parameters():
         param.detach()
     return model
+
+## Functions copied from original Mean Teacher Repository, https://github.com/CuriousAI/mean-teacher ##
+
+def update_ema_variables(model, ema_model, alpha, global_step):
+    # Use the true average until the exponential average is more correct
+    alpha = min(1 - 1 / (global_step + 1), alpha)
+    for ema_param, param in zip(ema_model.parameters(), model.parameters()):
+        ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
+
+def save_checkpoint(state, is_best, dirpath, epoch):
+    filename = 'checkpoint.{}.ckpt'.format(epoch)
+    checkpoint_path = os.path.join(dirpath, filename)
+    best_path = os.path.join(dirpath, 'best.ckpt')
+    torch.save(state, checkpoint_path)
+    LOG.info("--- checkpoint saved to %s ---" % checkpoint_path)
+    if is_best:
+        shutil.copyfile(checkpoint_path, best_path)
+        LOG.info("--- checkpoint copied to %s ---" % best_path)
+
+def softmax_mse_loss(input_logits, target_logits):
+    """Takes softmax on both sides and returns MSE loss
+
+    Note:
+    - Returns the sum over all examples. Divide by the batch size afterwards
+      if you want the mean.
+    - Sends gradients to inputs but not the targets.
+    """
+    assert input_logits.size() == target_logits.size()
+    input_softmax = F.softmax(input_logits, dim=1)
+    target_softmax = F.softmax(target_logits, dim=1)
+    num_classes = input_logits.size()[1]
+    return F.mse_loss(input_softmax, target_softmax, size_average=False) / num_classes
+
+
+def softmax_kl_loss(input_logits, target_logits):
+    """Takes softmax on both sides and returns KL divergence
+
+    Note:
+    - Returns the sum over all examples. Divide by the batch size afterwards
+      if you want the mean.
+    - Sends gradients to inputs but not the targets.
+    """
+    assert input_logits.size() == target_logits.size()
+    input_log_softmax = F.log_softmax(input_logits, dim=1)
+    target_softmax = F.softmax(target_logits, dim=1)
+    return F.kl_div(input_log_softmax, target_softmax, size_average=False)
+
+
+def sigmoid_rampup(current, rampup_length):
+    """Exponential rampup from https://arxiv.org/abs/1610.02242"""
+    if rampup_length == 0:
+        return 1.0
+    else:
+        current = np.clip(current, 0.0, rampup_length)
+        phase = 1.0 - current / rampup_length
+        return float(np.exp(-5.0 * phase * phase))
+
+
+def linear_rampup(current, rampup_length):
+    """Linear rampup"""
+    assert current >= 0 and rampup_length >= 0
+    if current >= rampup_length:
+        return 1.0
+    else:
+        return current / rampup_length
+
+
+def cosine_rampdown(current, rampdown_length):
+    """Cosine rampdown from https://arxiv.org/abs/1608.03983"""
+    assert 0 <= current <= rampdown_length
+    return float(.5 * (np.cos(np.pi * current / rampdown_length) + 1))
