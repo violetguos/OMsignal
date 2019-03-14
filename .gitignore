@@ -566,7 +566,6 @@ Temporary Items
 !fake_train_x.dat
 
 # TensorBoard, data and result related files
-Tensorboard/
 results/
 data/
 runs/
