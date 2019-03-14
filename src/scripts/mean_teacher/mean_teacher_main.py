@@ -12,7 +12,7 @@ import src.legacy.TABaseline.code.baseline_models as models
 from src.legacy.TeamB1pomt5.code.omsignal.utils.fft_utils import make_fft
 
 from src.data.mean_teacher_data_utils import import_OM
-from src.scripts.mean_teacher.mean_teacher_pytorch_utils import task_training, create_ema_model
+from src.utils.mean_teacher_pytorch_utils import task_training, create_ema_model
 from src.algorithm.mean_teacher_model import Conv1DLinear
 from src.data.mean_teacher_data_utils import get_hyperparameters
 
