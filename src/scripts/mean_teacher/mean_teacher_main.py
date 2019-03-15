@@ -1,3 +1,4 @@
+import os
 import argparse
 import json
 from datetime import datetime
@@ -151,6 +152,10 @@ if __name__ == "__main__":
 
     # Storing training info
     tb_path = hyperparameters[5]['tbpath'] + "/{task}".format(task=args.task)
+
+    if not os.path.exists(tb_path):
+        os.makedirs(tb_path)
+
     # Storing training config
     json = json.dumps(hyperparameters[:])
     f = open(tb_path + "/hyperparams_"+"{date:%Y-%m-%d_%H-%M}".format(date=datetime.now())+".json", "w")

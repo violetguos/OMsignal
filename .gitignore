@@ -566,10 +566,7 @@ Temporary Items
 !fake_train_x.dat
 
 # TensorBoard, data and result related files
-Tensorboard/mean_teacher/pr_mean/*
-Tensorboard/mean_teacher/rt_mean/*
-Tensorboard/mean_teacher/rr_stdev/*
-Tensorboard/mean_teacher/userid/*
+Tensorboard/
 results/
 data/
 runs/
