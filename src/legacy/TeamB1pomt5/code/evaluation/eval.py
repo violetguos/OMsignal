@@ -6,15 +6,16 @@ import torch
 import os
 import sys
 sys.path.append(os.path.abspath(os.path.join('..')))
-from omsignal.utils.memfile_utils import read_memfile, write_memfile
-from omsignal.base_networks import CNNRegression, CNNClassification
-from omsignal.om_networks import CNNRank
-from omsignal.utils.dataloader_utils import OM_dataset, Rank_dataset, import_OM, import_train_valid, get_dataloader
-from omsignal.base_networks import CNNRegression, CNNClassification
-from omsignal.om_networks import CNNRank
-from omsignal.utils.preprocessor import Preprocessor
-from omsignal.utils.rr_stdev import RR_Regressor, make_prediction
-from omsignal.utils.pytorch_utils import get_id_mapping, unmap_ids
+from src.legacy.TeamB1pomt5.code.omsignal.utils.memfile_utils import read_memfile, write_memfile
+from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNRegression, CNNClassification
+from src.legacy.TeamB1pomt5.code.omsignal.om_networks import CNNRank
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import OM_dataset, Rank_dataset, import_OM, import_train_valid, get_dataloader
+from src.legacy.TeamB1pomt5.code.omsignal.base_networks import CNNRegression, CNNClassification
+from src.legacy.TeamB1pomt5.code.omsignal.om_networks import CNNRank
+from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
+from src.legacy.TeamB1pomt5.code.omsignal.utils.rr_stdev import RR_Regressor, make_prediction
+from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import get_id_mapping, unmap_ids
+
 
 def eval_model(dataset_file, model_filename):
 
@@ -67,7 +68,7 @@ def eval_model(dataset_file, model_filename):
     mapping = get_id_mapping(y_train[:,3])
 
     #Load and preprocess the test dataset
-    X = read_memfile(dataset_file, shape=(160, 3754), dtype='float32')
+    X = read_memfile(dataset_file, shape=(10, 3754), dtype='float32')
     X = X[:,0:3750]
     X = X.reshape(X.shape[0],1,X.shape[1])
     preprocess = Preprocessor()
@@ -81,14 +82,23 @@ def eval_model(dataset_file, model_filename):
     predicted_RT_rank = RT_Ranker.Predict_ranking(X, device).astype(np.float32).flatten()
 
     # Predict RR
-    predicted_RR = make_prediction(X,filename='/rap/jvb-000-aa/COURS2019/etudiants/submissions/b1pomt5/model/rr_stdev.model').astype(np.float32).flatten()
+    predicted_RR = make_prediction(X, filename='/rap/jvb-000-aa/COURS2019/etudiants/submissions/b1pomt5/model/rr_stdev.model').astype(np.float32).flatten()
 
     # Format ID
     predicted_ID = ID_CNN.Predict_class(X, device).astype(np.int32).flatten()
     predicted_ID = unmap_ids(predicted_ID, mapping)
 
+    print("predicted_RR type", type(predicted_RR))
+    print("predicted_RR shape", predicted_RR.shape)
+    print("predicted_RR[0] ", type(predicted_RR[0]))
+    y_pred = np.hstack((predicted_PR.reshape((-1, 1)), predicted_RT_rank.reshape((-1, 1)),
+                        predicted_RR.reshape((-1, 1)), predicted_ID.reshape((-1, 1))))
+    print("y_pred type", type(y_pred))
+    print("y_pred[0] type", type(y_pred[0]))
+    print("y_pred[0][0] type", type(y_pred[0][0]))
 
-    y_pred = np.hstack((predicted_PR.reshape((-1, 1)), predicted_RT_rank.reshape((-1, 1)), predicted_RR.reshape((-1, 1)), predicted_ID.reshape((-1, 1))))
+    print("y_pred", y_pred.shape)
+    print("y_pred", y_pred)
     return y_pred
 
 
@@ -98,7 +108,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     
-    parser.add_argument("--dataset", type=str, default='')
+    parser.add_argument("--dataset", type=str, default='/rap/jvb-000-aa/COURS2019/etudiants/data/omsignal/myHeartProject/sample_test.dat')
     # dataset_dir will be the absolute path to the dataset to be used for
     # evaluation.
 

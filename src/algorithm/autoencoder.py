@@ -4,6 +4,7 @@ from src.legacy.TABaseline.code import Preprocessor as pp
 
 class AutoEncoder(nn.Module):
     """A regular fully connected Auto encoder"""
+
     def __init__(self):
         super(AutoEncoder, self).__init__()
         self.preprocess = pp.Preprocessor()
@@ -22,14 +23,9 @@ class AutoEncoder(nn.Module):
         x = self.decoder(x)
         return x
 
+
 class CnnAutoEncoder(nn.Module):
-    def __init__(self,
-                input_size,
-                hidden_size,
-                kernel_size=2,
-                pool_size=2,
-                dropout=0,
-                ):
+    def __init__(self, input_size, hidden_size, kernel_size=2, pool_size=2, dropout=0):
         super(CnnAutoEncoder, self).__init__()
         self.preprocess = pp.Preprocessor()
         self.dropout = nn.Dropout(p=dropout)
@@ -82,24 +78,20 @@ class CnnAutoEncoder(nn.Module):
             nn.Linear(1024, 2048),
             nn.ReLU(),
             nn.Dropout(p=0.5),
-            nn.Linear(2048, 3750)
+            nn.Linear(2048, 3750),
         )
 
         self.nl = nn.SELU()
 
     def l_out_conv1D(self, l_in, kernel_size, stride=1, padding=0, dilation=1):
-        l_out = (l_in + (2 * padding) - dilation *
-                 (kernel_size - 1) - 1) / stride
+        l_out = (l_in + (2 * padding) - dilation * (kernel_size - 1) - 1) / stride
         l_out = l_out + 1
         return int(l_out)
 
-    def l_out_maxpool1D(self, l_in, kernel_size, stride=None, padding=0,
-                        dilation=1):
+    def l_out_maxpool1D(self, l_in, kernel_size, stride=None, padding=0, dilation=1):
         if stride is None:
             stride = kernel_size
-        l_out = self.l_out_conv1D(
-            l_in, kernel_size, stride, padding, dilation
-        )
+        l_out = self.l_out_conv1D(l_in, kernel_size, stride, padding, dilation)
         return l_out
 
     def forward(self, x):
@@ -107,21 +99,15 @@ class CnnAutoEncoder(nn.Module):
         x = self.batch_norm0(x)
 
         x = self.dropout(
-            self.pool1(
-                self.batch_norm1(self.nl(self.conv2(self.nl(self.conv1(x)))))
-            )
+            self.pool1(self.batch_norm1(self.nl(self.conv2(self.nl(self.conv1(x))))))
         )
 
         x = self.dropout(
-            self.pool2(
-                self.batch_norm2(self.nl(self.conv4(self.nl(self.conv3(x)))))
-            )
+            self.pool2(self.batch_norm2(self.nl(self.conv4(self.nl(self.conv3(x))))))
         )
 
         x = self.dropout(
-            self.pool3(
-                self.batch_norm3(self.nl(self.conv6(self.nl(self.conv5(x)))))
-            )
+            self.pool3(self.batch_norm3(self.nl(self.conv6(self.nl(self.conv5(x))))))
         )
 
         pred = self.decoder(x.view(x.size(0), -1))

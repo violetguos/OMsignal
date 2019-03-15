@@ -1,6 +1,6 @@
 """a files to store all constants, such as fixed dimensions, path names"""
 import os
-
+import torch.nn as nn
 # path to REAL data
 REAL_OMSIGNAL_PATH = "/rap/jvb-000-aa/COURS2019/etudiants/data/omsignal/myHeartProject/"
 TRAIN_LABELED_DATASET_PATH = os.path.join(
@@ -54,7 +54,13 @@ T5_FAKE_VALID_LABELED_DATA = (
 
 # constants from TA baseline training
 TARGETS = 'pr_mean, rt_mean, rr_stdev, userid'
-
+TARGET_OUT_SIZE_DICT = {"pr_mean": 1, "rt_mean": 1, "rr_stdev": 1, "userid": 32}
+TARGET_CRITERION_DICT = {
+    "pr_mean": nn.MSELoss(),
+    "rt_mean": nn.MSELoss(),
+    "rr_stdev": nn.MSELoss(),
+    "userid": nn.CrossEntropyLoss(),
+}
 
 # our model path for logging and saving
 SAVE_MODEL_PATH = os.path.dirname(os.path.abspath(__file__)) + "/../../log"

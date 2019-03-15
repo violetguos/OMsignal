@@ -1,5 +1,17 @@
 # OMsignal
 
+
+## Directory Structure
+* `src` Main directory for source code.
+* `src/algorithm`: class definitions for models used
+* `src/legacy`: code from block 1 teams, included as is
+* `src/scripts`: runnable scripts that calls the class definitions and train models
+* `src/utils`: utility functions, e.g. saving models, tensorboard plotting, constants and file paths 
+* `data` Data related utilities. Data Loaders. **NOTE: DO NOT UPLOAD ANY REAL DATA.**
+* `model` Binary model saved after training
+ 
+
+
 ## Use virtual env with conda
 Create your Anaconda environment.
 
@@ -20,31 +32,6 @@ Install Python dependencies. I did a pip freeze on Helios, install the following
 pip install -r requirements.txt
 ```
 
-## IDE: Run and debug remotely with Pycharm (without Jupyter)
-I strongly recommend pycharm. Here's an excerpt of my block 1 team's setup.
-
-
-### Requirements
-* Pycharm **Professional edition** 2018.3.3 (works with 2018.2.7 too)
-    * The professionnal edition is free (and easy to get) for students as long as you give an university email :  https://www.jetbrains.com/student/ 
-### Setup
-1. Run this ssh tunnel command in a command line: `ssh -N -L 4444:localhost:22 USERNAME@helios.calculquebec.ca -p 22`. Now, the "remote" IP will be localhost and the port will be 4444.
-Without this tunnel, the remote interpreter python console will not connect.
-See more here : https://youtrack.jetbrains.com/issue/PY-18029 and here : https://www.ssh.com/ssh/tunneling/
-2. In Pycharm, you need to setup the Deployment configuration in the Settings menu. Add a new configuration and
-choose the SFTP option. Add your username, your password. Make sure that the remote address is localhost and the port is 4444 (because of the ssh tunnel).
-3. Now, in the same window, in the **Mappings** tab, you need to specify the **Deployment** path. It will copy your local project to the desired path in 
-your home directory in helios (for me, it is :  /DeployedProject/horoma). You can then enable automatic synchronization with Tool->Deployment->Automatic upload (really useful).
-4. To upload your project for the first time, you then need to right click your local root project folder (ift6759-horoma) and Deployment-> Upload to x.
-5. In Pycharm, you now need to setup the remote interpreter. To do this, go to File->Settings->Project Interpreter and add a new remote interpreter.
-Select the deployment that you have just made.
-6. **Really Important** : You need to change the default path to the python interpreter, because the real interpreter is in a singularity container (the same container that you can reach when you execute the s_shell command).
-To link it, you need to set the path to a shell script that I've written (ex: `/home/USERNAME/ETC/singularity_python.sh`). What this script does is like the s_shell command, but instead of running a shell in the container, it directly execute python  in the container.
-7. **Really Important 2** : if it does not work, you may need to give the right access to this file with this command : `chmod 755 /home/USERNAME/ETC/singularity_python.sh`
-8. Now, you can try to run a test python program to see if it works!
-9. **Optional**: I recommend to set the **project** interpreter to a local one and only use the remote one when you run a python file (in the run configuration tab).
- I think that it is not really worth it to set the project interpreter to the remote one because it needs a lot of pycharm processing. If you do that, you need to make sure that you have the same python packages as the remote python interpreter ones.
-
 ## Coding style auto-refactor tool
 
 after installing virtual env on conda, do 
@@ -57,9 +44,9 @@ pip install black
 Now, add Black to your Pycharm, see the official instructions [here](https://pypi.org/project/black/)
 
 
-# Project mangement
+## Project mangement
 
-## Important dates
+### Important dates
  * report + code + best model 2019/03/15 23:59 
 
 ## Github proper usage
@@ -104,33 +91,7 @@ Further paragraphs come after blank lines.
 [Source](https://medium.com/@steveamaza/how-to-write-a-proper-git-commit-message-e028865e5791)
 
 
-# prelim to-dos
-- [ ] in corporate past student code + TA baseline code
-- [ ] save the log files and bring it offline to plot - > automate this in shell script including the scp
-- [ ] email notif for log jobs on helios
 
-
-
-## TA's recommended timeline
-
-### 2019/02/11 week
-Review code and reports from block 1
-Understand how to use TensorboardX
-Code data loader for unlabeled data
-
-
-### 2019/02/18 week
-Identify and start implementing multi-task solutions for incorporating unlabeled data into the training process
-
-
-### 2019/02/25 week
-Continue implementing multi-task solution, leveraging the unlabeled data
-Hyper parameter fine tuning
-
-### 2019/03/01 week
-Write a short report summarizing the work, and results
-Provide model for blind test set evaluation
-Complete the peer code review
 
 
 
