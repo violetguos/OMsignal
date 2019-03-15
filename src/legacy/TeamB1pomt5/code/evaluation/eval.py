@@ -82,20 +82,23 @@ def eval_model(dataset_file, model_filename):
     predicted_RT_rank = RT_Ranker.Predict_ranking(X, device).astype(np.float32).flatten()
 
     # Predict RR
-    predicted_RR = make_prediction(X,filename='/rap/jvb-000-aa/COURS2019/etudiants/submissions/b1pomt5/model/rr_stdev.model').astype(np.float32).flatten()
+    predicted_RR = make_prediction(X, filename='/rap/jvb-000-aa/COURS2019/etudiants/submissions/b1pomt5/model/rr_stdev.model').astype(np.float32).flatten()
 
     # Format ID
     predicted_ID = ID_CNN.Predict_class(X, device).astype(np.int32).flatten()
     predicted_ID = unmap_ids(predicted_ID, mapping)
 
+    print("predicted_RR type", type(predicted_RR))
+    print("predicted_RR shape", predicted_RR.shape)
+    print("predicted_RR[0] ", type(predicted_RR[0]))
+    y_pred = np.hstack((predicted_PR.reshape((-1, 1)), predicted_RT_rank.reshape((-1, 1)),
+                        predicted_RR.reshape((-1, 1)), predicted_ID.reshape((-1, 1))))
+    print("y_pred type", type(y_pred))
+    print("y_pred[0] type", type(y_pred[0]))
+    print("y_pred[0][0] type", type(y_pred[0][0]))
 
-    y_pred = np.hstack((predicted_PR.reshape((-1, 1)), predicted_RT_rank.reshape((-1, 1)), predicted_RR.reshape((-1, 1)), predicted_ID.reshape((-1, 1))))
-    # print("y_pred type", type(y_pred))
-    # print("y_pred[0] type", type(y_pred[0]))
-    # print("y_pred[0][0] type", type(y_pred[0][0]))
-    #
-    # print("y_pred", y_pred.shape)
-    # print("y_pred", y_pred)
+    print("y_pred", y_pred.shape)
+    print("y_pred", y_pred)
     return y_pred
 
 

@@ -3,7 +3,7 @@ import csv
 import os
 plt.rcParams.update(plt.rcParamsDefault)
 plt.style.use("ggplot")
-plt.rcParams["figure.figsize"] = (8, 4)
+plt.rcParams["figure.figsize"] = (7, 5)
 
 
 def csv_to_list(csv_fp="log/fft_tb/run_fft_tb-tag-Train_acc.csv"):
@@ -21,10 +21,7 @@ def csv_to_list(csv_fp="log/fft_tb/run_fft_tb-tag-Train_acc.csv"):
             y.append(float(row[2]))
     return x, y
 
-
-
-if __name__ == "__main__":
-
+def vae_fft_model():
     train_acc_csv_fp = "log/fft_tb/run_fft_tb-tag-Train_acc.csv"
     train_ce_csv_fp = "log/fft_tb/run_fft_tb-tag-Train_cross_entropy.csv"
 
@@ -53,3 +50,77 @@ if __name__ == "__main__":
     plt.show()
     plt.close()
     plt.clf()
+
+def final_model():
+
+    train_score_csv_fp = "log/final/run_final-tag-Training_OverallScore.csv"
+    train_loss_csv_fp = "log/final/run_final-tag-Training_Loss.csv"
+
+    valid_score_csv_fp = "log/final/run_final-tag-Valid_OverallScore.csv"
+    valid_loss_csv_fp = "log/final/run_final-tag-Valid_Loss.csv"
+
+    mse_loss_fp = "log/final/run_final-tag-Training_ReconstructLoss.csv"
+
+    plot_fp = {
+        'Train overall score': train_score_csv_fp,
+        'Train loss': train_loss_csv_fp,
+        'Valid overall score': valid_score_csv_fp,
+        'Valid loss': valid_loss_csv_fp,
+        'Reconstruction': mse_loss_fp
+    }
+    for key, val in plot_fp.items():
+        x, y = csv_to_list(val)
+        plt.plot(x, y, label=key)
+
+    plt.xlabel("Number of epochs")
+    plt.ylabel("overall score / weighted loss")
+    plt.title("Autoencoder semisupervised")
+    plt.legend()
+    fig = 'train_curve_final'
+    plt.savefig(fig + ".png")
+    plt.show()
+    plt.close()
+    plt.clf()
+
+
+    plot_fp_2 = {
+        'Train loss': train_loss_csv_fp,
+        'Valid loss': valid_loss_csv_fp,
+    }
+    for key, val in plot_fp_2.items():
+        x, y = csv_to_list(val)
+        plt.plot(x, y, label=key)
+
+    plt.xlabel("Number of epochs")
+    plt.ylabel("overall score / weighted loss")
+    plt.title("Autoencoder semisupervised")
+    plt.legend()
+    fig = 'train_curve_final_2'
+    plt.savefig(fig + ".png")
+    plt.show()
+    plt.close()
+    plt.clf()
+
+
+
+    plot_fp_3 = {
+        'Train overall score': train_score_csv_fp,
+        'Valid overall score': valid_score_csv_fp,
+        'Reconstruction': mse_loss_fp
+
+    }
+    for key, val in plot_fp_3.items():
+        x, y = csv_to_list(val)
+        plt.plot(x, y, label=key)
+
+    plt.xlabel("Number of epochs")
+    plt.ylabel("overall score / weighted loss")
+    plt.title("Autoencoder semisupervised")
+    plt.legend()
+    fig = 'train_curve_final_2'
+    plt.savefig(fig + ".png")
+    plt.show()
+    plt.close()
+    plt.clf()
+if __name__ == "__main__":
+    vae_fft_model()

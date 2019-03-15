@@ -118,12 +118,13 @@ def eval_model(dataset_file, model_filename):
                     ecgId_pred = pred_classes.view(-1).tolist()
                 else:
                     ecgId_pred.extend(pred_classes.view(-1).tolist())
-            print("type prMean_pred[0]", type(prMean_pred[0]))
+            # print("type prMean_pred[0]", type(prMean_pred[0]))
 
         # metrics
         prMean_pred = None if prMean_pred is None else np.array(
             prMean_pred, dtype=np.float32)
-        print("type prMean_pred[0]", type(prMean_pred[0]))
+        # print("prMean_pred", prMean_pred.shape)
+        # print("type prMean_pred[0]", type(prMean_pred[0]))
         rtMean_pred = None if rtMean_pred is None else np.array(
             rtMean_pred, dtype=np.float32)
 
@@ -133,19 +134,10 @@ def eval_model(dataset_file, model_filename):
         ecgId_pred = None if ecgId_pred is None else np.array(
             ecgId_pred, dtype=np.int32)
 
-        outputs = np.hstack((prMean_pred.reshape((-1, 1)), rtMean_pred.reshape((-1, 1)),
+        y_pred = np.hstack((prMean_pred.reshape((-1, 1)), rtMean_pred.reshape((-1, 1)),
                             rrStd_pred.reshape((-1, 1)), ecgId_pred.reshape((-1, 1))))
 
-        print("outputs", outputs)
-        print("outputs type", type(outputs))
-        print("outputs[0] type", type(outputs[0]))
-        print("outputs[0][0] type", type(outputs[0][0]))
-
-        print("outputs", outputs.shape)
-        print("outputs", outputs)
-
-        # concate a list of numpy arrays
-        y_pred = outputs
+        y_pred = y_pred.astype(np.float32)
 
     else:
 
@@ -159,12 +151,12 @@ def eval_model(dataset_file, model_filename):
              ], axis=1
         ).astype(np.float32)
 
-    print("y_pred type", type(y_pred))
-    print("y_pred[0] type", type(y_pred[0]))
-    print("y_pred[0][0] type", type(y_pred[0][0]))
-
-    print("y_pred", y_pred.shape)
-    print("y_pred", y_pred)
+    # print("y_pred type", type(y_pred))
+    # print("y_pred[0] type", type(y_pred[0]))
+    # print("y_pred[0][0] type", type(y_pred[0][0]))
+    #
+    # print("y_pred", y_pred.shape)
+    # print("y_pred", y_pred)
 
     return y_pred
 
