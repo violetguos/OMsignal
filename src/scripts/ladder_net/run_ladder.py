@@ -7,7 +7,7 @@ from algorithm.ladder.ladder import (
     get_batch_data,
     encoder_forward
 )
-from src.scripts.unsupervised_pretraining import load_data
+from scripts.class1_semi_supervised.unsupervised_pretraining import load_data
 import torch
 import numpy as np
 import argparse
