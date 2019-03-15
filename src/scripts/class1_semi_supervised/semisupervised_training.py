@@ -76,7 +76,7 @@ def train_unsupervised_per_epoch(model, optimizer, batch_size, unlabeled_loader)
             output = model(data, label=False)
 
             data = pp.Preprocessor().forward(data)
-            MSE_loss = nn.MSELoss()(output, data)
+            MSE_loss = nn.L1Loss()(output, data)
 
             # ===================backward====================
             optimizer.zero_grad()
