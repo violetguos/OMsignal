@@ -39,12 +39,11 @@ def train_epoch(model, optimizer, loader,epoch,include_subsamples,large):
     
     :return: training loss, accuracy, large (for next epoch)
     """
-    model.train()
-
 	total, correct = 0, 0
 	running_loss = 0.0
 
 	loss_func = nn.CrossEntropyLoss().to(device)
+	model.train()
 
 	for i, (data, label) in enumerate(loader):
 	    data, label = data.float().to(device), label[:, 0].to(device)
