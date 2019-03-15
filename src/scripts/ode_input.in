@@ -1,7 +1,7 @@
 [optimizer]
 learning_rate = 2e-4
-nepoch = 500
-batch_size = 12
+nepoch = 100
+batch_size = 6
 
 [model]
 name = multi_ode

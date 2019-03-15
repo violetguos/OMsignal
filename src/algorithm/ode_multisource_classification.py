@@ -3,7 +3,7 @@ import torch.nn as nn
 import sys
 import os
 sys.path.append(os.path.abspath(os.path.join('..', '..')))
-from torchdiffeq import odeint_adjoint as odeint
+from src.torchdiffeq import odeint_adjoint as odeint
 
 class ODEfunc(nn.Module):
     """The main function to be used in ODE solver"""
