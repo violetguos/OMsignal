@@ -161,12 +161,12 @@ def eval_model(dataset_file, model_filename):
              ], axis=1
         ).astype(np.float32)
 
-    print("y_pred type", type(y_pred))
-    print("y_pred[0] type", type(y_pred[0]))
-    print("y_pred[0][0] type", type(y_pred[0][0]))
-
-    print("y_pred", y_pred.shape)
-    print("y_pred", y_pred)
+    # print("y_pred type", type(y_pred))
+    # print("y_pred[0] type", type(y_pred[0]))
+    # print("y_pred[0][0] type", type(y_pred[0][0]))
+    #
+    # print("y_pred", y_pred.shape)
+    # print("y_pred", y_pred)
 
     return y_pred
 
