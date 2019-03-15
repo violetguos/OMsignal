@@ -55,6 +55,8 @@ def get_hyperparameters(config):
         int(config.get('optimizer', 'batch_size'))
     hyperparam['nepoch'] = \
         int(config.get('optimizer', 'nepoch'))
+    hyperparam['weight_decay'] = \
+        float(config.get('optimizer', 'weight_decay'))
     hyperparam['model'] = \
         config.get('model', 'name')
     hyperparam['hidden_size'] = \

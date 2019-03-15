@@ -74,6 +74,7 @@ if __name__ == '__main__':
                                                             trsfrm=trsfrm, 
                                                             learning_rate=params['learning_rate'], 
                                                             num_epochs=params['num_epochs'],
+
                                                             conv1_num_filters=params['conv1_num_filters'],
                                                             conv2_num_filters=params['conv2_num_filters'],
                                                             conv_ksize=params['conv_ksize'],
