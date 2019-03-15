@@ -39,7 +39,7 @@ def train_epoch(model, optimizer, loader,epoch,include_subsamples,large):
     
     :return: training loss, accuracy, large (for next epoch)
     """
-    model.train()
+	model.train()
 
 	total, correct = 0, 0
 	running_loss = 0.0
@@ -47,11 +47,10 @@ def train_epoch(model, optimizer, loader,epoch,include_subsamples,large):
 	loss_func = nn.CrossEntropyLoss().to(device)
 
 	for i, (data, label) in enumerate(loader):
-	    data, label = data.float().to(device), label[:, 0].to(device)
-	    
-	    label = label.long()
+		data, label = data.float().to(device), label[:, 0].to(device)
 
-	    if include_subsamples:
+	    label = label.long()
+		if include_subsamples:
 	        if not large:
 
 	            if epoch%5==0:
@@ -168,27 +167,26 @@ def training_loop(model,optimizer,train_loader,valid_loader,hyperparameters_dict
 	# Index starts at 1 for reporting purposes
 	for epoch in range(1, hyperparameters_dict['nepoch'] + 1):
 
-	    train_loss, train_acc,large = train_epoch(
-	        model, optimizer, train_loader,epoch,include_subsamples,large
-	    )
+		train_loss, train_acc,large = train_epoch(model, optimizer, train_loader,epoch,include_subsamples,large)
 
-	    train_loss_history.append(train_loss)
-	    train_acc_history.append(train_acc)
+		train_loss_history.append(train_loss)
+		train_acc_history.append(train_acc)
 
-	    valid_loss, valid_acc,max_valid_acc = eval_epoch(
+		valid_loss, valid_acc,max_valid_acc = eval_epoch(
 	       model, optimizer, valid_loader,max_valid_acc,hyperparameters_dict
 	    )
-	    valid_loss_history.append(valid_loss)
-	    valid_acc_history.append(valid_acc)
+
+		valid_loss_history.append(valid_loss)
+		valid_acc_history.append(valid_acc)
 
 
-	    writer.add_scalar('Training/Loss', train_loss, epoch)
-	    writer.add_scalar('Valid/Loss', valid_loss, epoch)
+		writer.add_scalar('Training/Loss', train_loss, epoch)
+		writer.add_scalar('Valid/Loss', valid_loss, epoch)
 
-	    writer.add_scalar('Training/Acc', train_acc, epoch)
-	    writer.add_scalar('Valid/Acc', valid_acc, epoch)
+		writer.add_scalar('Training/Acc', train_acc, epoch)
+		writer.add_scalar('Valid/Acc', valid_acc, epoch)
 
-	    print("Epoch {} {} {} {} {}".format(
+		print("Epoch {} {} {} {} {}".format(
 	        epoch, train_loss, valid_loss, train_acc, valid_acc)
 	    )
 
@@ -214,11 +212,11 @@ def run(model_hp_dict):
 
 def main(config_model):
 
-    # reads in the config files
+	# reads in the config files
     model_config = configparser.ConfigParser()
-    model_config.read(config_model)
-    model_hp_dict = get_hyperparameters(model_config)
-    mkdir_p(model_hp_dict["modelpath"])
+	model_config.read(config_model)
+	model_hp_dict = get_hyperparameters(model_config)
+	mkdir_p(model_hp_dict["modelpath"])
     # Call functions to run models
     run(model_hp_dict)
 
