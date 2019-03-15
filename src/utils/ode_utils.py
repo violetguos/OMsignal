@@ -1,4 +1,6 @@
 import torch
+import os
+import errno 
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset
 from src.legacy.TeamB1pomt5.code.omsignal.utils.preprocessor import Preprocessor
@@ -6,6 +8,15 @@ from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import log_trainin
 from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_train_valid, import_OM,OM_dataset,get_dataloader
 from src.legacy.TeamB1pomt5.code.omsignal.utils.augmentation import RandomCircShift, RandomDropoutBurst, RandomNegate, RandomReplaceNoise
 
+
+def mkdir_p(path):
+    try:
+        os.makedirs(path)
+    except OSError as exc:  # Python >2.5
+        if exc.errno == errno.EEXIST and os.path.isdir(path):
+            pass
+        else:
+            raise
 
 
 def get_hyperparameters(config):
@@ -22,17 +33,13 @@ def get_hyperparameters(config):
     hyperparam["subsample"] = config.get("model", "include_subsamples")
     hyperparam["tbpath"] = config.get("path", "tensorboard")
     hyperparam["modelpath"] = config.get("path", "model")
-    return hyperparam
 
+    return hyperparam
 
 
 def load_data(model_hp_dict,gpu_avail,device):
     # get data 
     X_train, X_valid, y_train, y_valid = import_train_valid('ids', cluster=gpu_avail)
-
-    # Remapping IDs
-
-    
 
     #process & format
 
@@ -50,18 +57,7 @@ def load_data(model_hp_dict,gpu_avail,device):
 
     train_loader, valid_loader = fetch_dataloaders(X_train, y_train, X_valid, y_valid,model_hp_dict['batchsize'], transform=trsfrm)
 
-
-    # unlabeled = import_OM("unlabeled")
-    #unlabeled = unlabeled[:,np.newaxis,:]
-    # unlabeled = preprocess(torch.from_numpy(unlabeled)).numpy()    
-    # unlabeled_loader = get_dataloader_unlabeled(unlabeled,trsfrm, model_hp_dict['batchsize'], shuffle=False)
-
-    return train_loader, valid_loader#, unlabeled_loader
-
-
-
-
-
+    return train_loader, valid_loader
 
 
 def fetch_dataloaders(train_data, train_labels, valid_data, valid_labels, batch_size=50, transform=None): #No need with train_ID_CNN
@@ -77,15 +73,6 @@ def fetch_dataloaders(train_data, train_labels, valid_data, valid_labels, batch_
 
     return train_loader, valid_loader
 
-def training_loop(training_dataloader, validation_dataloader, model):
-    """
-
-    :param training_dataloader:
-    :param validation_dataloader:
-    :param model:
-    :return: model
-    """
-    return model
 
 def get_map_ids(y_train,y_valid):
     mapping = get_id_mapping(y_train[:,0])

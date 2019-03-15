@@ -1,3 +1,4 @@
+"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/, code is taken as is without re-writing according to IFT6759 standards."""
 # Based on https://github.com/tensorflow/tensorflow/tree/master/tensorflow/contrib/integrate
 import torch
 from .misc import (
