@@ -29,7 +29,7 @@ np.random.seed(seed)
 
 
 def train_epoch(model, optimizer, loader,epoch,include_subsamples,large):
-	    """
+	"""
     Trains model for a single epoch
     :param model: the model created under src/algorithms
     :param optimizer: pytorch optim
@@ -39,7 +39,7 @@ def train_epoch(model, optimizer, loader,epoch,include_subsamples,large):
     
     :return: training loss, accuracy, large (for next epoch)
     """
-	model.train()
+    model.train()
 
 	total, correct = 0, 0
 	running_loss = 0.0
