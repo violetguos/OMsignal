@@ -14,6 +14,9 @@ from src.data.unlabelled_data import UnlabelledDataset
 from torch.utils.data import DataLoader
 from src.utils import constants
 from src.algorithm.CNN_multitask_semisupervised import Conv1DBNLinear
+from src.legacy.TeamB1pomt5.code.omsignal.utils.pytorch_utils import unmap_ids, get_id_mapping
+from src.legacy.TeamB1pomt5.code.omsignal.utils.dataloader_utils import import_train_valid
+
 
 
 def eval_model(dataset_file, model_filename):
@@ -134,6 +137,12 @@ def eval_model(dataset_file, model_filename):
         ecgId_pred = None if ecgId_pred is None else np.array(
             ecgId_pred, dtype=np.int32)
 
+        # Make id mapping for Classification task
+        _, _, y_train, _ = import_train_valid('all', cluster=True)
+        mapping = get_id_mapping(y_train[:, 3])
+        # map back
+        ecgId_pred = unmap_ids(ecgId_pred, mapping)
+
         y_pred = np.hstack((prMean_pred.reshape((-1, 1)), rtMean_pred.reshape((-1, 1)),
                             rrStd_pred.reshape((-1, 1)), ecgId_pred.reshape((-1, 1))))
 
@@ -151,12 +160,12 @@ def eval_model(dataset_file, model_filename):
              ], axis=1
         ).astype(np.float32)
 
-    # print("y_pred type", type(y_pred))
-    # print("y_pred[0] type", type(y_pred[0]))
-    # print("y_pred[0][0] type", type(y_pred[0][0]))
-    #
-    # print("y_pred", y_pred.shape)
-    # print("y_pred", y_pred)
+    print("y_pred type", type(y_pred))
+    print("y_pred[0] type", type(y_pred[0]))
+    print("y_pred[0][0] type", type(y_pred[0][0]))
+
+    print("y_pred", y_pred.shape)
+    print("y_pred", y_pred)
 
     return y_pred
 

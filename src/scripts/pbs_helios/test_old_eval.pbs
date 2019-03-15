@@ -1,7 +1,7 @@
 #!/bin/bash
 #PBS -A colosse-users
 #PBS -l nodes=1:gpus=1
-#PBS -l walltime=4:00:00
+#PBS -l walltime=00:30:00
 
 #SBATCH --mail-user=USER_EMAIL
 #SBATCH --mail-type=BEGIN
@@ -22,7 +22,7 @@ cd "${PBS_O_WORKDIR}"
 
 
 # s_exec /miniconda/bin/python ../../../src/legacy/TeamB1pomt5/code/evaluation/eval.py
-s_exec /miniconda/bin/python ../../../evaluation/eval.py --dataset=/rap/jvb-000-aa/COURS2019/etudiants/data/omsignal/myHeartProject/sample_test.dat
+s_exec /miniconda/bin/python ../../../evaluation/eval.py --dataset=/rap/jvb-000-aa/COURS2019/etudiants/data/omsignal/myHeartProject/MILA_TrainLabeledData.dat
 
 
 # If out and err dirs don't exist, make them
