@@ -11,27 +11,55 @@ from torch.autograd import Variable
 from tensorboardX import SummaryWriter
 from scipy.stats import kendalltau
 
-from src.data.mean_teacher_data_utils import create_DataLoaders, AverageMeterSet, RunContext
+from src.data.mean_teacher_data_utils import (
+    create_DataLoaders,
+    AverageMeterSet,
+    RunContext,
+)
 
 ## Global variables :: some of them will be found in main codes ##
-LOG = logging.getLogger('main')
+LOG = logging.getLogger("main")
 NO_LABEL = 0
 global_step = 0
 best_precision = 0
-device = ('cuda:0' if torch.cuda.is_available() else 'cpu')
+device = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 target_criterion_dict = {
-    'pr_mean': nn.MSELoss(),
-    'rt_mean': nn.MSELoss(),
-    'rr_stdev': nn.MSELoss(),
-    'userid': nn.CrossEntropyLoss(size_average = True, reduction='sum', ignore_index=NO_LABEL)
+    "pr_mean": nn.MSELoss(),
+    "rt_mean": nn.MSELoss(),
+    "rr_stdev": nn.MSELoss(),
+    "userid": nn.CrossEntropyLoss(
+        size_average=True, reduction="sum", ignore_index=NO_LABEL
+    ),
 }
 ## Functions ##
 
-def task_training(task, model, model_ema, train_data, valid_data, unlabeled_data, augment=True, batchsize=32, labeled_batch_size = 16,
-                  consistency_type='mse', consistency=True, consistency_rampup=50, learning_rate=0.00, initial_lr=1E-6, lr_rampup=10,
-                  lr_rampdown = 100, weight_decay=1E-4, EMA_decay=0.999, epochs=100, device=device,
-                  evaluation_epochs=1, checkpoint_epochs = 5, tbpath = "Tensorboard/mean_teacher"):
+
+def task_training(
+    task,
+    model,
+    model_ema,
+    train_data,
+    valid_data,
+    unlabeled_data,
+    augment=True,
+    batchsize=32,
+    labeled_batch_size=16,
+    consistency_type="mse",
+    consistency=True,
+    consistency_rampup=50,
+    learning_rate=0.00,
+    initial_lr=1e-6,
+    lr_rampup=10,
+    lr_rampdown=100,
+    weight_decay=1e-4,
+    EMA_decay=0.999,
+    epochs=100,
+    device=device,
+    evaluation_epochs=1,
+    checkpoint_epochs=5,
+    tbpath="Tensorboard/mean_teacher",
+):
     """
     Task training function. Takes as arguments the task for which to train the network. Almost all the following arguments
     are hyperparameters
@@ -61,7 +89,7 @@ def task_training(task, model, model_ema, train_data, valid_data, unlabeled_data
     :return: None
     """
     writer = SummaryWriter(tbpath)
-    context = RunContext(__file__,0)
+    context = RunContext(__file__, 0)
     global global_step
     global_step = 0
     best_precision = 0
@@ -73,35 +101,81 @@ def task_training(task, model, model_ema, train_data, valid_data, unlabeled_data
 
     class_criterion = target_criterion_dict[task]
 
-    train_loader, valid_loader = create_DataLoaders(train_data, valid_data, include_unlabeled=True,
-                                                    unlabeled_data=unlabeled_data,
-                                                    batch_size=batchsize, labeled_batch_size=labeled_batch_size,
-                                                    task=task, use_transform=augment)
+    train_loader, valid_loader = create_DataLoaders(
+        train_data,
+        valid_data,
+        include_unlabeled=True,
+        unlabeled_data=unlabeled_data,
+        batch_size=batchsize,
+        labeled_batch_size=labeled_batch_size,
+        task=task,
+        use_transform=augment,
+    )
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(
+        model.parameters(), lr=learning_rate, weight_decay=weight_decay
+    )
     model.to(device)
     model_ema.to(device)
     for epoch in range(epochs):
 
         start_time = time.time()
         # train for one epoch
-        train(train_loader, model, model_ema, optimizer, epoch, epochs, training_log,
-              task=task, lr=learning_rate, initial_lr=initial_lr, lr_rampup=lr_rampup, lr_rampdown_epochs=lr_rampdown,
-              ema_decay=EMA_decay, device=device, global_step=global_step, tb_writer=writer,
-              consistency_type=consistency_type, consistency=consistency, consistency_rampup=consistency_rampup)
+        train(
+            train_loader,
+            model,
+            model_ema,
+            optimizer,
+            epoch,
+            epochs,
+            training_log,
+            task=task,
+            lr=learning_rate,
+            initial_lr=initial_lr,
+            lr_rampup=lr_rampup,
+            lr_rampdown_epochs=lr_rampdown,
+            ema_decay=EMA_decay,
+            device=device,
+            global_step=global_step,
+            tb_writer=writer,
+            consistency_type=consistency_type,
+            consistency=consistency,
+            consistency_rampup=consistency_rampup,
+        )
 
-        LOG.info("--- training epoch %s in %s seconds ---" % (epoch, time.time() - start_time))
+        LOG.info(
+            "--- training epoch %s in %s seconds ---"
+            % (epoch, time.time() - start_time)
+        )
 
         if evaluation_epochs and (epoch + 1) % evaluation_epochs == 0:
             start_time = time.time()
             LOG.info("Evaluating the primary model:")
-            prec1 = validate(valid_loader, model, 'Student', validation_log, global_step, epoch + 1,
-                             device=device, task=task, writer=writer)
+            prec1 = validate(
+                valid_loader,
+                model,
+                "Student",
+                validation_log,
+                global_step,
+                epoch + 1,
+                device=device,
+                task=task,
+                writer=writer,
+            )
             writer.add_scalar("Student_model_validation", prec1, epoch)
 
             LOG.info("Evaluating the EMA model:")
-            ema_prec1 = validate(valid_loader, model_ema, 'Teacher', ema_validation_log, global_step, epoch + 1,
-                                 device=device, task=task, writer=writer)
+            ema_prec1 = validate(
+                valid_loader,
+                model_ema,
+                "Teacher",
+                ema_validation_log,
+                global_step,
+                epoch + 1,
+                device=device,
+                task=task,
+                writer=writer,
+            )
             writer.add_scalar("Teacher_model_validation", ema_prec1, epoch)
 
             LOG.info("--- validation in %s seconds ---" % (time.time() - start_time))
@@ -112,23 +186,47 @@ def task_training(task, model, model_ema, train_data, valid_data, unlabeled_data
             is_best = False
 
         if checkpoint_epochs and (epoch + 1) % checkpoint_epochs == 0:
-            save_checkpoint({
-                'epoch': epoch + 1,
-                'global_step': global_step,
-                'arch': '{}'.format(type(model)),
-                'state_dict': model.state_dict(),
-                'ema_state_dict': model_ema.state_dict(),
-                'best_precision': best_precision,
-                'optimizer' : optimizer.state_dict(),
-            }, is_best, checkpoint_path, epoch + 1)
+            save_checkpoint(
+                {
+                    "epoch": epoch + 1,
+                    "global_step": global_step,
+                    "arch": "{}".format(type(model)),
+                    "state_dict": model.state_dict(),
+                    "ema_state_dict": model_ema.state_dict(),
+                    "best_precision": best_precision,
+                    "optimizer": optimizer.state_dict(),
+                },
+                is_best,
+                checkpoint_path,
+                epoch + 1,
+            )
 
     global_step = 0
     return None
 
-def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
-          task = 'userid', consistency_type = 'mse', lr=1E-3, ema_decay=0.999, print_freq=10, consistency=True,
-          consistency_rampup=50, initial_lr=1E-5, lr_rampup=100, lr_rampdown_epochs=1500, device='cuda:0',
-          global_step=global_step, tb_writer = SummaryWriter()):
+
+def train(
+    train_loader,
+    model,
+    ema_model,
+    optimizer,
+    epoch,
+    epochs,
+    log,
+    task="userid",
+    consistency_type="mse",
+    lr=1e-3,
+    ema_decay=0.999,
+    print_freq=10,
+    consistency=True,
+    consistency_rampup=50,
+    initial_lr=1e-5,
+    lr_rampup=100,
+    lr_rampdown_epochs=1500,
+    device="cuda:0",
+    global_step=global_step,
+    tb_writer=SummaryWriter(),
+):
     """
 
     :param train_loader: (DataLoader) train dataloader
@@ -158,13 +256,13 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
     assert task in target_criterion_dict.keys(), "Incorrect task!"
     class_criterion = target_criterion_dict[task]
 
-    if consistency_type == 'mse':
-        if task != 'userid':
+    if consistency_type == "mse":
+        if task != "userid":
             consistency_criterion = F.mse_loss
         else:
             consistency_criterion = softmax_mse_loss
-    elif consistency_type == 'kl':
-        if task != 'userid':
+    elif consistency_type == "kl":
+        if task != "userid":
             consistency_criterion = F.kl_div
         else:
             consistency_criterion = softmax_kl_loss
@@ -184,12 +282,20 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
         # Measure data loading time
         input_check, ema_check = input[0].numpy(), ema_input[0].numpy()
         diff_check = input_check - ema_check
-        meters.update('data_time', time.time() - end)
+        meters.update("data_time", time.time() - end)
 
-        lr = adjust_learning_rate(lr, initial_lr, lr_rampup, lr_rampdown_epochs, optimizer, epoch, epochs,
-                                  i, len(train_loader))
-        meters.update('lr', optimizer.param_groups[0]['lr'])
-
+        lr = adjust_learning_rate(
+            lr,
+            initial_lr,
+            lr_rampup,
+            lr_rampdown_epochs,
+            optimizer,
+            epoch,
+            epochs,
+            i,
+            len(train_loader),
+        )
+        meters.update("lr", optimizer.param_groups[0]["lr"])
 
         # Variable type creation
         input_var = torch.autograd.Variable(input.to(device))
@@ -199,7 +305,7 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
         minibatch_size = len(target_var)
         labeled_minibatch_size = target_var.data.ne(NO_LABEL).sum()
         assert labeled_minibatch_size > 0
-        meters.update('labeled_minibatch_size', labeled_minibatch_size.cpu().item())
+        meters.update("labeled_minibatch_size", labeled_minibatch_size.cpu().item())
 
         ema_model_out = ema_model(ema_input_var)
         ema_softmax_out = F.softmax(ema_model_out, dim=1)
@@ -215,62 +321,101 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
 
         class_logit, cons_logit = logit1, model_out
 
-        if task != 'userid':
+        if task != "userid":
             labeled_input = torch.tensor(
-                np.array([input[i].cpu().numpy() for i,ex in enumerate(input) if target[i].item() != -1.0], dtype=np.float32),
-                         requires_grad = True).to(device)
+                np.array(
+                    [
+                        input[i].cpu().numpy()
+                        for i, ex in enumerate(input)
+                        if target[i].item() != -1.0
+                    ],
+                    dtype=np.float32,
+                ),
+                requires_grad=True,
+            ).to(device)
             ema_labeled_input = torch.tensor(
-                np.array([ema_input[i].cpu().numpy() for i,ex in enumerate(input) if target[i].item() != -1.0], dtype=np.float32),
-                         requires_grad = True).to(device)
+                np.array(
+                    [
+                        ema_input[i].cpu().numpy()
+                        for i, ex in enumerate(input)
+                        if target[i].item() != -1.0
+                    ],
+                    dtype=np.float32,
+                ),
+                requires_grad=True,
+            ).to(device)
             target_w_label = torch.tensor(
-                np.array([target[i].cpu().numpy() for i, ex in enumerate(input) if target[i].item() != -1.0],
-                         dtype=np.float32), requires_grad=True).to(device)
+                np.array(
+                    [
+                        target[i].cpu().numpy()
+                        for i, ex in enumerate(input)
+                        if target[i].item() != -1.0
+                    ],
+                    dtype=np.float32,
+                ),
+                requires_grad=True,
+            ).to(device)
 
-            model_out =  model(labeled_input) # No softmax
-            class_loss = class_criterion(model_out, target_w_label) # MSE error already performs mean
-            perfo_score, _ = kendalltau(model_out.detach().cpu().numpy(), target_w_label.detach().cpu().numpy())
-            meters.update('class_loss', class_loss.cpu().item())
-            meters.update('kentau', perfo_score)
+            model_out = model(labeled_input)  # No softmax
+            class_loss = class_criterion(
+                model_out, target_w_label
+            )  # MSE error already performs mean
+            perfo_score, _ = kendalltau(
+                model_out.detach().cpu().numpy(), target_w_label.detach().cpu().numpy()
+            )
+            meters.update("class_loss", class_loss.cpu().item())
+            meters.update("kentau", perfo_score)
 
             ema_model_out = model(ema_labeled_input)
             ema_logit_mse = ema_model_out.detach().data
             ema_logit_mse.requires_grad = False
-            ema_class_loss = class_criterion(ema_logit_mse, target_w_label) # MSE error already performs mean
-            ema_perfo_score, _ = kendalltau(ema_model_out.detach().cpu().numpy(), target_w_label.detach().cpu().numpy())
-            meters.update('ema_kentau', ema_perfo_score)
+            ema_class_loss = class_criterion(
+                ema_logit_mse, target_w_label
+            )  # MSE error already performs mean
+            ema_perfo_score, _ = kendalltau(
+                ema_model_out.detach().cpu().numpy(),
+                target_w_label.detach().cpu().numpy(),
+            )
+            meters.update("ema_kentau", ema_perfo_score)
 
-        else: #CrossEntropyLoss
+        else:  # CrossEntropyLoss
             class_loss = class_criterion(class_logit, target_var.squeeze())
-            meters.update('class_loss', class_loss.cpu().item())
+            meters.update("class_loss", class_loss.cpu().item())
 
             ema_class_loss = class_criterion(ema_logit, target_var.squeeze())
-            meters.update('ema_class_loss', ema_class_loss.cpu().item())
+            meters.update("ema_class_loss", ema_class_loss.cpu().item())
 
         if consistency:
-            consistency_weight = get_current_consistency_weight(epoch, consistency, consistency_rampup)
-            meters.update('cons_weight', consistency_weight)
-            consistency_loss = consistency_weight * consistency_criterion(cons_logit, ema_cons_logit)
-            meters.update('cons_loss', consistency_loss.cpu().item())
+            consistency_weight = get_current_consistency_weight(
+                epoch, consistency, consistency_rampup
+            )
+            meters.update("cons_weight", consistency_weight)
+            consistency_loss = consistency_weight * consistency_criterion(
+                cons_logit, ema_cons_logit
+            )
+            meters.update("cons_loss", consistency_loss.cpu().item())
         else:
             consistency_loss = 0
-            meters.update('cons_loss', 0)
+            meters.update("cons_loss", 0)
 
         loss = class_loss + consistency_loss
-        if (np.isnan(loss.data.cpu()) or loss.data.cpu() > 1e5):
+        if np.isnan(loss.data.cpu()) or loss.data.cpu() > 1e5:
             breakpoint = True
             x_ = loss
             x_data = loss.data
             x_data_cpu = loss.data.cpu()
             for name, param in model.named_parameters():
                 if param.requires_grad:
-                    print (name, param.data)
+                    print(name, param.data)
             for name, param in ema_model.named_parameters():
                 if param.requires_grad:
-                    print (name, param.data)
-        assert not (np.isnan(loss.data.cpu()) or loss.data.cpu() > 1e5), 'Loss explosion: {}'.format(loss.data)
-        meters.update('loss', loss.cpu().item())
+                    print(name, param.data)
+        assert not (
+            np.isnan(loss.data.cpu()) or loss.data.cpu() > 1e5
+        ), "Loss explosion: {}".format(loss.data)
+        meters.update("loss", loss.cpu().item())
 
-        if task != 'userid':
+        if task != "userid":
 
             # compute gradient and do SGD step
             optimizer.zero_grad()
@@ -280,34 +425,53 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
             update_ema_variables(model, ema_model, ema_decay, global_step)
 
             # measure elapsed time
-            meters.update('batch_time', time.time() - end)
+            meters.update("batch_time", time.time() - end)
             end = time.time()
 
             if i % print_freq == 0:
                 LOG.info(
-                    'Epoch: [{0}][{1}/{2}]\t'
-                    'Time {meters[batch_time]:.3f}\t'
-                    'Data {meters[data_time]:.3f}\t'
-                    'Class {meters[class_loss]:.4f}\t'
-                    'Cons {meters[cons_loss]:.4f}\t'
-                    'KendallTau Student {meters[kentau]:.4f}\t'
-                    'KendallTau Teacher {meters[ema_kentau]:.4f}'.format(
-                        epoch, i, len(train_loader), meters=meters))
-                log.record(epoch + i / len(train_loader), {
-                    'step': global_step,
-                    **meters.values(),
-                    **meters.averages(),
-                    **meters.sums()
-                })
+                    "Epoch: [{0}][{1}/{2}]\t"
+                    "Time {meters[batch_time]:.3f}\t"
+                    "Data {meters[data_time]:.3f}\t"
+                    "Class {meters[class_loss]:.4f}\t"
+                    "Cons {meters[cons_loss]:.4f}\t"
+                    "KendallTau Student {meters[kentau]:.4f}\t"
+                    "KendallTau Teacher {meters[ema_kentau]:.4f}".format(
+                        epoch, i, len(train_loader), meters=meters
+                    )
+                )
+                log.record(
+                    epoch + i / len(train_loader),
+                    {
+                        "step": global_step,
+                        **meters.values(),
+                        **meters.averages(),
+                        **meters.sums(),
+                    },
+                )
 
         else:
             prec1 = accuracy(class_logit.data, target_var.data, topk=(1,))
-            meters.update('top1', prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
-            meters.update('error1', 100. - prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
+            meters.update(
+                "top1", prec1[0].cpu().item(), labeled_minibatch_size.cpu().item()
+            )
+            meters.update(
+                "error1",
+                100.0 - prec1[0].cpu().item(),
+                labeled_minibatch_size.cpu().item(),
+            )
 
             ema_prec1 = accuracy(ema_logit.data, target_var.data, topk=(1,))
-            meters.update('ema_top1', ema_prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
-            meters.update('ema_error1', 100. - ema_prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
+            meters.update(
+                "ema_top1",
+                ema_prec1[0].cpu().item(),
+                labeled_minibatch_size.cpu().item(),
+            )
+            meters.update(
+                "ema_error1",
+                100.0 - ema_prec1[0].cpu().item(),
+                labeled_minibatch_size.cpu().item(),
+            )
 
             # compute gradient and do SGD step
             optimizer.zero_grad()
@@ -317,41 +481,67 @@ def train(train_loader, model, ema_model, optimizer, epoch, epochs, log,
             update_ema_variables(model, ema_model, ema_decay, global_step)
 
             # measure elapsed time
-            meters.update('batch_time', time.time() - end)
+            meters.update("batch_time", time.time() - end)
             end = time.time()
 
             if i % print_freq == 0:
                 LOG.info(
-                    'Epoch: [{0}][{1}/{2}]\t'
-                    'Time {meters[batch_time]:.3f}\t'
-                    'Data {meters[data_time]:.3f}\t'
-                    'Class {meters[class_loss]:.4f}\t'
-                    'Cons {meters[cons_loss]:.4f}\t'
-                    'Accuracy Student {meters[top1]:.3f}\t'
-                    'Accuracy Teacher {meters[ema_top1]:.3f}'.format(
-                        epoch, i, len(train_loader), meters=meters))
-                log.record(epoch + i / len(train_loader), {
-                    'step': global_step,
-                    **meters.values(),
-                    **meters.averages(),
-                    **meters.sums()
-                })
+                    "Epoch: [{0}][{1}/{2}]\t"
+                    "Time {meters[batch_time]:.3f}\t"
+                    "Data {meters[data_time]:.3f}\t"
+                    "Class {meters[class_loss]:.4f}\t"
+                    "Cons {meters[cons_loss]:.4f}\t"
+                    "Accuracy Student {meters[top1]:.3f}\t"
+                    "Accuracy Teacher {meters[ema_top1]:.3f}".format(
+                        epoch, i, len(train_loader), meters=meters
+                    )
+                )
+                log.record(
+                    epoch + i / len(train_loader),
+                    {
+                        "step": global_step,
+                        **meters.values(),
+                        **meters.averages(),
+                        **meters.sums(),
+                    },
+                )
 
         if isinstance(tb_writer, SummaryWriter):
-            tb_writer.add_scalar("Loss", loss.cpu().item(), epoch * len(train_loader) + i)
-            tb_writer.add_scalar("Class_loss", class_loss.cpu().item(), epoch * len(train_loader) + i)
+            tb_writer.add_scalar(
+                "Loss", loss.cpu().item(), epoch * len(train_loader) + i
+            )
+            tb_writer.add_scalar(
+                "Class_loss", class_loss.cpu().item(), epoch * len(train_loader) + i
+            )
             if consistency:
-                tb_writer.add_scalar("Cons_loss", consistency_loss.cpu().item(), epoch * len(train_loader) + i)
+                tb_writer.add_scalar(
+                    "Cons_loss",
+                    consistency_loss.cpu().item(),
+                    epoch * len(train_loader) + i,
+                )
     if isinstance(tb_writer, SummaryWriter):
-        if task != 'userid':
+        if task != "userid":
             tb_writer.add_scalar("Student_model_training", perfo_score, epoch)
             tb_writer.add_scalar("Teacher_model_training", ema_perfo_score, epoch)
         else:
             tb_writer.add_scalar("Student_model_training", prec1[0].cpu().item(), epoch)
-            tb_writer.add_scalar("Teacher_model_training", ema_prec1[0].cpu().item(), epoch)
+            tb_writer.add_scalar(
+                "Teacher_model_training", ema_prec1[0].cpu().item(), epoch
+            )
 
-def validate(eval_loader, model, model_type, log, global_step, epoch, print_freq = 1, device='cuda:0',
-             task = 'userid', writer = None):
+
+def validate(
+    eval_loader,
+    model,
+    model_type,
+    log,
+    global_step,
+    epoch,
+    print_freq=1,
+    device="cuda:0",
+    task="userid",
+    writer=None,
+):
     """
     Validation function; takes in a model and evaluation dataloader and measure performance of the model
     on the validation dataloader
@@ -375,7 +565,7 @@ def validate(eval_loader, model, model_type, log, global_step, epoch, print_freq
 
     end = time.time()
     for i, ((input, _), target) in enumerate(eval_loader):
-        meters.update('data_time', time.time() - end)
+        meters.update("data_time", time.time() - end)
 
         input_var = torch.autograd.Variable(input.to(device))
         target_var = torch.autograd.Variable(target.to(device))
@@ -383,67 +573,91 @@ def validate(eval_loader, model, model_type, log, global_step, epoch, print_freq
         minibatch_size = len(target_var)
         labeled_minibatch_size = target_var.data.ne(NO_LABEL).sum()
         assert labeled_minibatch_size > 0
-        meters.update('labeled_minibatch_size', labeled_minibatch_size.cpu().item())
-
+        meters.update("labeled_minibatch_size", labeled_minibatch_size.cpu().item())
 
         # compute output
         output1 = model(input_var)
 
-        if task == 'userid':
+        if task == "userid":
             softmax1 = F.softmax(output1, dim=1)
             class_loss = class_criterion(softmax1, target_var.squeeze())
             writer.add_scalar("{}_valid_loss".format(model_type), class_loss, epoch)
             prec1 = accuracy(softmax1.data, target_var.data, topk=(1,))
-            meters.update('class_loss', class_loss.cpu().item(), labeled_minibatch_size.cpu().item())
-            meters.update('top1', prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
-            meters.update('error1', 100.0 - prec1[0].cpu().item(), labeled_minibatch_size.cpu().item())
+            meters.update(
+                "class_loss",
+                class_loss.cpu().item(),
+                labeled_minibatch_size.cpu().item(),
+            )
+            meters.update(
+                "top1", prec1[0].cpu().item(), labeled_minibatch_size.cpu().item()
+            )
+            meters.update(
+                "error1",
+                100.0 - prec1[0].cpu().item(),
+                labeled_minibatch_size.cpu().item(),
+            )
 
-            meters.update('batch_time', time.time() - end)
+            meters.update("batch_time", time.time() - end)
             end = time.time()
 
             if i % print_freq == 0:
                 LOG.info(
-                    'Test: [{0}/{1}]\t'
-                    'Class {meters[class_loss]:.4f}\t'
-                    'Accuracy {meters[top1]:.3f}\t'.format(
-                        i, len(eval_loader), meters=meters))
-            LOG.info(' * Prec@1 {top1.avg:.3f}\t'
-                     .format(top1=meters['top1']))
+                    "Test: [{0}/{1}]\t"
+                    "Class {meters[class_loss]:.4f}\t"
+                    "Accuracy {meters[top1]:.3f}\t".format(
+                        i, len(eval_loader), meters=meters
+                    )
+                )
+            LOG.info(" * Prec@1 {top1.avg:.3f}\t".format(top1=meters["top1"]))
 
-            log.record(epoch, {
-                'step': global_step,
-                **meters.values(),
-                **meters.averages(),
-                **meters.sums()
-            })
+            log.record(
+                epoch,
+                {
+                    "step": global_step,
+                    **meters.values(),
+                    **meters.averages(),
+                    **meters.sums(),
+                },
+            )
 
-            return meters['top1'].avg
+            return meters["top1"].avg
 
-        else: # 'pr_mean', 'rt_mean', 'rr_std'
+        else:  # 'pr_mean', 'rt_mean', 'rr_std'
             class_loss = class_criterion(output1, target_var.float())
             writer.add_scalar("{}_valid_loss".format(model_type), class_loss, epoch)
-            perfo_score, _ = kendalltau(output1.detach().cpu().numpy(), target_var.detach().cpu().numpy())
-            meters.update('class_loss', class_loss.cpu().item(), labeled_minibatch_size.cpu().item())
-            meters.update('kentau', perfo_score, labeled_minibatch_size.cpu().item())
+            perfo_score, _ = kendalltau(
+                output1.detach().cpu().numpy(), target_var.detach().cpu().numpy()
+            )
+            meters.update(
+                "class_loss",
+                class_loss.cpu().item(),
+                labeled_minibatch_size.cpu().item(),
+            )
+            meters.update("kentau", perfo_score, labeled_minibatch_size.cpu().item())
 
-            meters.update('batch_time', time.time() - end)
+            meters.update("batch_time", time.time() - end)
             end = time.time()
 
             if i % print_freq == 0:
                 LOG.info(
-                    'Test: [{0}/{1}]\t'
-                    'Class {meters[class_loss]:.4f}\t'
-                    'KendallTau Score {meters[kentau]:.4f}'.format(
-                        i, len(eval_loader), meters=meters))
+                    "Test: [{0}/{1}]\t"
+                    "Class {meters[class_loss]:.4f}\t"
+                    "KendallTau Score {meters[kentau]:.4f}".format(
+                        i, len(eval_loader), meters=meters
+                    )
+                )
 
-            log.record(epoch, {
-                'step': global_step,
-                **meters.values(),
-                **meters.averages(),
-                **meters.sums()
-            })
+            log.record(
+                epoch,
+                {
+                    "step": global_step,
+                    **meters.values(),
+                    **meters.averages(),
+                    **meters.sums(),
+                },
+            )
 
-            return meters['kentau'].avg
+            return meters["kentau"].avg
 
 
 def accuracy(output, target, topk=(1,)):
@@ -452,8 +666,12 @@ def accuracy(output, target, topk=(1,)):
     labeled_minibatch_size = max(target.ne(NO_LABEL).sum(), 1e-8)
 
     _, pred = output.topk(maxk, 1, True, True)
-    labeled_pred = torch.tensor(([pred[i] for i,ex in enumerate(target) if ex != NO_LABEL]))
-    labeled_target = torch.tensor(([target[i] for i, ex in enumerate(target) if ex != NO_LABEL]))
+    labeled_pred = torch.tensor(
+        ([pred[i] for i, ex in enumerate(target) if ex != NO_LABEL])
+    )
+    labeled_target = torch.tensor(
+        ([target[i] for i, ex in enumerate(target) if ex != NO_LABEL])
+    )
 
     correct = labeled_pred.eq(labeled_target)
 
@@ -463,12 +681,23 @@ def accuracy(output, target, topk=(1,)):
         res.append(correct_k.mul_(100.0 / float(labeled_minibatch_size)))
     return res
 
+
 def get_current_consistency_weight(epoch, consistency, consistency_rampup=1000):
     # Consistency ramp-up from https://arxiv.org/abs/1610.02242
     return consistency * sigmoid_rampup(epoch, consistency_rampup)
 
-def adjust_learning_rate(lr, initial_lr, lr_rampup, lr_rampdown_epochs, optimizer, epoch,
-                         epochs, step_in_epoch, total_steps_in_epoch):
+
+def adjust_learning_rate(
+    lr,
+    initial_lr,
+    lr_rampup,
+    lr_rampdown_epochs,
+    optimizer,
+    epoch,
+    epochs,
+    step_in_epoch,
+    total_steps_in_epoch,
+):
     """
     Custom learning adjustment function
     :param lr: (float) maximum learning rate
@@ -494,9 +723,10 @@ def adjust_learning_rate(lr, initial_lr, lr_rampup, lr_rampdown_epochs, optimize
         lr *= cosine_rampdown(epoch, lr_rampdown_epochs)
 
     for param_group in optimizer.param_groups:
-        param_group['lr'] = lr
+        param_group["lr"] = lr
 
     return lr
+
 
 def create_ema_model(model):
     """
@@ -508,7 +738,9 @@ def create_ema_model(model):
         param.detach()
     return model
 
+
 ## Functions copied from original Mean Teacher Repository, https://github.com/CuriousAI/mean-teacher ##
+
 
 def update_ema_variables(model, ema_model, alpha, global_step):
     # Use the true average until the exponential average is more correct
@@ -516,15 +748,17 @@ def update_ema_variables(model, ema_model, alpha, global_step):
     for ema_param, param in zip(ema_model.parameters(), model.parameters()):
         ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
+
 def save_checkpoint(state, is_best, dirpath, epoch):
-    filename = 'checkpoint.{}.ckpt'.format(epoch)
+    filename = "checkpoint.{}.ckpt".format(epoch)
     checkpoint_path = os.path.join(dirpath, filename)
-    best_path = os.path.join(dirpath, 'best.ckpt')
+    best_path = os.path.join(dirpath, "best.ckpt")
     torch.save(state, checkpoint_path)
     LOG.info("--- checkpoint saved to %s ---" % checkpoint_path)
     if is_best:
         shutil.copyfile(checkpoint_path, best_path)
         LOG.info("--- checkpoint copied to %s ---" % best_path)
+
 
 def softmax_mse_loss(input_logits, target_logits):
     """Takes softmax on both sides and returns MSE loss
@@ -577,4 +811,4 @@ def linear_rampup(current, rampup_length):
 def cosine_rampdown(current, rampdown_length):
     """Cosine rampdown from https://arxiv.org/abs/1608.03983"""
     assert 0 <= current <= rampdown_length
-    return float(.5 * (np.cos(np.pi * current / rampdown_length) + 1))
+    return float(0.5 * (np.cos(np.pi * current / rampdown_length) + 1))

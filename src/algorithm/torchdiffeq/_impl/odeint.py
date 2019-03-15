@@ -1,4 +1,5 @@
-"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/, code is taken as is without re-writing according to IFT6759 standards."""
+"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/,
+code is taken as is without re-writing according to IFT6759 standards."""
 
 from .tsit5 import Tsit5Solver
 from .dopri5 import Dopri5Solver
@@ -8,14 +9,14 @@ from .adams import VariableCoefficientAdamsBashforth
 from .misc import _check_inputs
 
 SOLVERS = {
-    'explicit_adams': AdamsBashforth,
-    'fixed_adams': AdamsBashforthMoulton,
-    'adams': VariableCoefficientAdamsBashforth,
-    'tsit5': Tsit5Solver,
-    'dopri5': Dopri5Solver,
-    'euler': Euler,
-    'midpoint': Midpoint,
-    'rk4': RK4,
+    "explicit_adams": AdamsBashforth,
+    "fixed_adams": AdamsBashforthMoulton,
+    "adams": VariableCoefficientAdamsBashforth,
+    "tsit5": Tsit5Solver,
+    "dopri5": Dopri5Solver,
+    "euler": Euler,
+    "midpoint": Midpoint,
+    "rk4": RK4,
 }
 
 
@@ -65,10 +66,10 @@ def odeint(func, y0, t, rtol=1e-7, atol=1e-9, method=None, options=None):
     if options is None:
         options = {}
     elif method is None:
-        raise ValueError('cannot supply `options` without specifying `method`')
+        raise ValueError("cannot supply `options` without specifying `method`")
 
     if method is None:
-        method = 'dopri5'
+        method = "dopri5"
 
     solver = SOLVERS[method](func, y0, rtol=rtol, atol=atol, **options)
     solution = solver.integrate(t)
