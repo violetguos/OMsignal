@@ -1,4 +1,5 @@
-"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/, code is taken as is without re-writing according to IFT6759 standards."""
+"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/,
+ code is taken as is without re-writing according to IFT6759 standards."""
 import abc
 import torch
 from .misc import _assert_increasing, _handle_unused_kwargs
@@ -37,9 +38,11 @@ class AdaptiveStepsizeODESolver(object):
 class FixedGridODESolver(object):
     __metaclass__ = abc.ABCMeta
 
-    def __init__(self, func, y0, step_size=None, grid_constructor=None, **unused_kwargs):
-        unused_kwargs.pop('rtol', None)
-        unused_kwargs.pop('atol', None)
+    def __init__(
+        self, func, y0, step_size=None, grid_constructor=None, **unused_kwargs
+    ):
+        unused_kwargs.pop("rtol", None)
+        unused_kwargs.pop("atol", None)
         _handle_unused_kwargs(self, unused_kwargs)
         del unused_kwargs
 
@@ -54,7 +57,6 @@ class FixedGridODESolver(object):
             raise ValueError("step_size and grid_constructor are exclusive arguments.")
 
     def _grid_constructor_from_step_size(self, step_size):
-
         def _grid_constructor(func, y0, t):
             start_time = t[0]
             end_time = t[-1]

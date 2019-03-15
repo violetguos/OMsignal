@@ -1,4 +1,5 @@
-"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/, code is taken as is without re-writing according to IFT6759 standards."""
+"""Code referenced from open source implementation at https://github.com/rtqichen/torchdiffeq/,
+ code is taken as is without re-writing according to IFT6759 standards."""
 import torch
 from .misc import _convert_to_tensor, _dot_product
 
@@ -56,11 +57,16 @@ def _interp_evaluate(coefficients, t0, t1, t):
     t1 = _convert_to_tensor(t1, dtype=dtype, device=device)
     t = _convert_to_tensor(t, dtype=dtype, device=device)
 
-    assert (t0 <= t) & (t <= t1), 'invalid interpolation, fails `t0 <= t <= t1`: {}, {}, {}'.format(t0, t, t1)
+    assert (t0 <= t) & (
+        t <= t1
+    ), "invalid interpolation, fails `t0 <= t <= t1`: {}, {}, {}".format(t0, t, t1)
     x = ((t - t0) / (t1 - t0)).type(dtype).to(device)
 
     xs = [torch.tensor(1).type(dtype).to(device), x]
     for _ in range(2, len(coefficients)):
         xs.append(xs[-1] * x)
 
-    return tuple(_dot_product(coefficients_, reversed(xs)) for coefficients_ in zip(*coefficients))
+    return tuple(
+        _dot_product(coefficients_, reversed(xs))
+        for coefficients_ in zip(*coefficients)
+    )
