@@ -6,7 +6,6 @@ sys.path.append(os.path.abspath(os.path.join('..', '..')))
 from torchdiffeq import odeint_adjoint as odeint
 
 class ODEfunc(nn.Module):
-    """The main function to be used in ODE solver"""
 
     def __init__(self, dim):
         super(ODEfunc, self).__init__()
@@ -31,10 +30,7 @@ class ODEfunc(nn.Module):
 
 
 class ODEBlock(nn.Module):
-    """ the block within which the odefunction is optimized 
-    NOTE: This code is adapted from the main files of https://github.com/rtqichen/torchdiffeq/
-    for which all auxiliary functions can be found in torchdiffeq directory.
-    """
+
     def __init__(self, odefunc):
         super(ODEBlock, self).__init__()
         self.odefunc = odefunc
@@ -64,10 +60,6 @@ class Flatten(nn.Module):
         return x.view(-1, shape)
 
 class MNet(nn.Module):
-    """ Initializes 4 downsampling networks for fft and signal sources at large and subsample dimensions
-    Concatenates results of full and subsample downsampling for fft and signal.
-
-     """
     def __init__(self):
         super(MNet, self).__init__()
 
@@ -88,9 +80,6 @@ class MNet(nn.Module):
         return out
     
 class ODEModel(nn.Module):
-    """ Initializes all networks for the odesolver.
-
-     """
     def __init__(self):
         super(ODEModel, self).__init__()
         
@@ -108,7 +97,7 @@ class ODEModel(nn.Module):
         return out
 
 class DownSampleFFT_sub(nn.Module):
-    """Downsample FFT signal for 1/5th of the sample"""
+
     def __init__(self,conv1_num_filters=64, conv2_num_filters=128, \
         conv_ksize=16, conv_stride=1, conv_padding=2, \
         pool_ksize=32, pool_stride=1, pool_padding=2 ):
@@ -142,7 +131,6 @@ class DownSampleFFT_sub(nn.Module):
         return x
 
 class DownSampleSig_sub(nn.Module):
-    """Downsample  signal for 1/5th of the sample"""
 
     def __init__(self,conv1_num_filters=128, conv_ksize=32, conv_stride=3, conv_padding=1, \
         pool_ksize=32, pool_stride=2, pool_padding=0):
@@ -173,7 +161,6 @@ class DownSampleSig_sub(nn.Module):
 
         return x
 class DownSampleSig_full(nn.Module):
-    """Downsample  full signal for  ODE solver"""
 
     def __init__(self,conv1_num_filters=16, conv2_num_filters=32, conv3_num_filters=128, \
         conv_ksize=32, conv_stride=1, conv_padding=1, \
@@ -222,7 +209,7 @@ class DownSampleSig_full(nn.Module):
         return x
     
 class DownSampleFFT_full(nn.Module):
-    """Downsample  fft for full signal for  ODE solver"""
+
 
     def __init__(self,conv1_num_filters=16, conv2_num_filters=32, conv3_num_filters=128, \
         conv_ksize=32, conv_stride=1, conv_padding=1, \
